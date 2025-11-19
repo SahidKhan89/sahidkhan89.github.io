@@ -40,7 +40,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-image: url('images/background.jpg');
+      background: linear-gradient(135deg, #1a1a2e 0%, #0c0c0d 100%);
       background-size: cover;
       background-position: center;
       background-attachment: fixed;
@@ -355,6 +355,8 @@
       overflow: hidden;
       border: 1px solid var(--border);
       transition: all 0.3s ease;
+      background: rgba(26, 26, 29, 0.85);
+      padding: 1rem;
     }
 
     .screenshot-item:hover {
@@ -366,6 +368,8 @@
       width: 280px;
       height: auto;
       display: block;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 12px;
     }
 
     /* Stats Section */
@@ -422,6 +426,8 @@
       font-size: 1.1rem;
       border-radius: 50px;
       transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
     }
 
     .cta-button:hover {
@@ -484,11 +490,41 @@
       color: var(--text);
       font-size: 1.5rem;
       cursor: pointer;
+      transition: color 0.3s ease;
+    }
+
+    .mobile-menu-btn:hover {
+      color: var(--primary);
     }
 
     @media (max-width: 768px) {
       nav .nav-links {
         display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        background: rgba(12, 12, 13, 0.98);
+        border-bottom: 1px solid var(--border);
+        padding: 1.5rem;
+        gap: 1rem;
+      }
+
+      nav .nav-links.active {
+        display: flex;
+        animation: slideDown 0.3s ease-out;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       .mobile-menu-btn {
@@ -511,6 +547,11 @@
         width: 100%;
         max-width: 300px;
       }
+
+      .qr-codes {
+        flex-direction: column;
+        align-items: center;
+      }
     }
 
     /* Smooth Scroll */
@@ -528,13 +569,13 @@
         <img src="images/logo.png" alt="Stock Score Logo" />
         Stock Score
       </div>
-      <div class="nav-links">
+      <div class="nav-links" id="navLinks">
         <a href="#features">Features</a>
         <a href="#screenshots">App Preview</a>
         <a href="privacy-policy.html">Privacy</a>
         <a href="contact.html">Contact</a>
       </div>
-      <button class="mobile-menu-btn">☰</button>
+      <button class="mobile-menu-btn" id="menuBtn">☰</button>
     </div>
   </nav>
 
@@ -666,7 +707,7 @@
     <section class="cta">
       <h2>Ready to Level Up Your Investing?</h2>
       <p>Join thousands of investors already using Stock Score to make smarter decisions</p>
-      <a href="#" class="cta-button">Download Now</a>
+      <button class="cta-button">Download Now</button>
     </section>
   </div>
 
@@ -683,24 +724,24 @@
         <ul>
           <li><a href="#features">Features</a></li>
           <li><a href="#screenshots">Screenshots</a></li>
-          <li><a href="contact.html">Contact Us</a></li>
+          <li><a href="#">Contact Us</a></li>
         </ul>
       </div>
       
       <div class="footer-section">
         <h3>Legal</h3>
         <ul>
-          <li><a href="privacy-policy.html">Privacy Policy</a></li>
+          <li><a href="#">Privacy Policy</a></li>
         </ul>
       </div>
       
       <div class="footer-section">
         <h3>Connect</h3>
         <ul>
-          <li><a href="contact.html">Get in Touch</a></li>
-          <li><a href="mailto:support@stockscore.co.uk">support@stockscore.co.uk</a></li>
-          <li><a href="https://x.com/StockScoreUK" target="_blank" rel="noopener noreferrer">X (Twitter)</a></li>
-          <li><a href="https://threads.net/@StockScoreUK" target="_blank" rel="noopener noreferrer">Threads</a></li>
+          <li><a href="#">Get in Touch</a></li>
+          <li><a href="mailto:info@stockscore.co.uk">info@stockscore.co.uk</a></li>
+          <li><a href="#">X (Twitter)</a></li>
+          <li><a href="#">Threads</a></li>
         </ul>
       </div>
     </div>
@@ -709,6 +750,30 @@
       <p>© 2025 Stock Score. All rights reserved. Investment involves risk. Past performance does not guarantee future results.</p>
     </div>
   </footer>
+
+  <script>
+    const menuBtn = document.getElementById('menuBtn');
+    const navLinks = document.getElementById('navLinks');
+
+    // Toggle menu on button click
+    menuBtn.addEventListener('click', () => {
+      navLinks.classList.toggle('active');
+    });
+
+    // Close menu when a link is clicked
+    navLinks.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        navLinks.classList.remove('active');
+      });
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('nav')) {
+        navLinks.classList.remove('active');
+      }
+    });
+  </script>
 
 </body>
 </html>
