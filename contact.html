@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Us - Stock Score</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #14b8a6;
+      --primary-dark: #0d9488;
+      --bg-dark: #0c0c0d;
+      --bg-card: #1a1a1d;
+      --text: #fafafa;
+      --text-dim: #b3b3b3;
+      --border: #232326;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: url('images/background.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      background: rgba(12, 12, 13, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+    }
+
+    nav .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    nav .logo img {
+      height: 32px;
+      width: auto;
+    }
+
+    nav .nav-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    nav .nav-links a {
+      color: var(--text-dim);
+      font-weight: 500;
+      transition: color 0.3s ease;
+      text-decoration: none;
+    }
+
+    nav .nav-links a:hover {
+      color: var(--text);
+    }
+
+    /* Main Content */
+    .main-content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 8rem 2rem 4rem;
+    }
+
+    .content-box {
+      background: rgba(26, 26, 29, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 3rem;
+      border: 1px solid var(--border);
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      margin-bottom: 2rem;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 2rem;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .back-link:hover {
+      color: var(--primary-dark);
+    }
+
+    /* Contact Info Cards */
+    .contact-methods {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .contact-card {
+      background: rgba(35, 35, 38, 0.6);
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .contact-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary);
+      box-shadow: 0 8px 20px rgba(20, 184, 166, 0.2);
+    }
+
+    .contact-card .icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .contact-card h3 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    .contact-card p {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+    }
+
+    .contact-card a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .contact-card a:hover {
+      color: var(--primary-dark);
+      text-decoration: underline;
+    }
+
+    .social-links {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .social-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.4rem 0.8rem;
+      background: rgba(20, 184, 166, 0.1);
+      border: 1px solid var(--primary);
+      border-radius: 8px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+    }
+
+    .social-link:hover {
+      background: rgba(20, 184, 166, 0.2);
+      transform: translateY(-2px);
+    }
+
+    /* Form Section */
+    .form-section {
+      margin-top: 3rem;
+    }
+
+    .form-section h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+
+    .form-container {
+      background: rgba(12, 12, 13, 0.5);
+      border-radius: 12px;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      min-height: 800px;
+    }
+
+    iframe {
+      width: 100%;
+      height: 750px;
+      border: none;
+      border-radius: 8px;
+    }
+
+    /* Footer */
+    footer {
+      background: rgba(19, 19, 22, 0.95);
+      padding: 2rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-dim);
+      margin-top: 4rem;
+    }
+
+    footer a {
+      color: var(--primary);
+      margin: 0 0.5rem;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .content-box {
+        padding: 2rem 1.5rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      .contact-methods {
+        grid-template-columns: 1fr;
+      }
+
+      iframe {
+        height: 600px;
+      }
+
+      .social-links {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <img src="images/logo.png" alt="Stock Score Logo" />
+        Stock Score
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="privacy-policy.html">Privacy</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="content-box">
+      <a href="index.html" class="back-link">← Back to Home</a>
+      
+      <h1>Get in Touch</h1>
+      <p class="subtitle">Have questions or feedback? We'd love to hear from you. Fill out the form below or reach out directly.</p>
+
+      <!-- Contact Methods -->
+      <div class="contact-methods">
+        <div class="contact-card">
+          <div class="icon">📧</div>
+          <h3>Email Us</h3>
+          <p><a href="mailto:info@stockscore.co.uk">info@stockscore.co.uk</a></p>
+          <p style="margin-top: 0.5rem;">We typically respond within 24 hours</p>
+        </div>
+
+        <div class="contact-card">
+          <div class="icon">🌐</div>
+          <h3>Follow Us</h3>
+          <p style="margin-bottom: 0.75rem;">Stay updated with the latest features and market insights</p>
+          <div class="social-links">
+            <a href="https://x.com/StockScoreUK" class="social-link" target="_blank" rel="noopener noreferrer">
+              <span>𝕏</span> X
+            </a>
+            <a href="https://threads.net/@StockScoreUK" class="social-link" target="_blank" rel="noopener noreferrer">
+              <span>@</span> Threads
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Form -->
+      <div class="form-section">
+        <h2>Send us a Message</h2>
+        <div class="form-container">
+          <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSfrANpJt_uH0idOr0wSbXkWxHIRS-8FKQxws7gW-U5YbHMcVg/viewform?embedded=true" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>© 2025 Stock Score. All rights reserved.</p>
+    <p>
+      <a href="index.html">Home</a> |
+      <a href="privacy-policy.html">Privacy Policy</a>
+    </p>
+  </footer>
+
+</body>
+</html>
