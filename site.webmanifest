@@ -1,0 +1,12 @@
+{
+  "name": "Stock Score",
+  "short_name": "StockScore",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    { "src": "/images/180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/images/1024.png", "sizes": "1024x1024", "type": "image/png" }
+  ]
+}
