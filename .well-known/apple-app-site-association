@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "ZH9KSY5NX9.com.skhan.stockscore",
+        "paths": ["/ref/*"]
+      }
+    ]
+  }
+}
