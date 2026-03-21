@@ -1,10 +1,10 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.skhan.stockscore",
-      "sha256_cert_fingerprints": ["1C:41:1C:58:21:37:D2:AE:B7:D6:02:D5:B4:74:2B:6C:1F:5C:5F:10:3F:42:CA:2B:12:5B:11:7D:50:12:6F:A8"]
-    }
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.skhan.stockscore",
+    "sha256_cert_fingerprints": [
+      "6D:42:41:69:42:1C:65:32:7C:47:47:E4:AD:AC:15:E6:65:13:E8:DE:AF:58:94:C4:69:7C:35:60:FE:CA:A6:F3"
+    ]
   }
-]
+}]
