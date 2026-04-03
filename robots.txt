@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /og-preview.html
+
+Sitemap: https://www.stockscore.co.uk/sitemap.xml
