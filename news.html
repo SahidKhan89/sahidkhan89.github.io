@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="icon" href="/images/logo.png">
+  <meta name="theme-color" content="#14b8a6" />
+  <title>Market News – Stock Score</title>
+  <meta name="description" content="Latest market news and financial stories, curated for investors by Stock Score." />
+  <link rel="canonical" href="https://www.stockscore.co.uk/news.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #14b8a6;
+      --primary-dark: #0d9488;
+      --bg-dark: #0c0c0d;
+      --bg-card: #1a1a1d;
+      --bg-card-hover: #232326;
+      --text: #fafafa;
+      --text-dim: #b3b3b3;
+      --border: #232326;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: url('images/background.jpg') center/cover fixed no-repeat,
+                  linear-gradient(135deg, #1a1a2e 0%, #0c0c0d 100%);
+      filter: blur(3px);
+      z-index: -2;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(12, 12, 13, 0.75);
+      z-index: -1;
+    }
+
+    a { color: var(--primary); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: var(--primary-dark); }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; width: 100%;
+      background: rgba(12, 12, 13, 0.9);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      border-bottom: 1px solid var(--border);
+    }
+    nav .nav-container {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 2rem;
+    }
+    nav .logo {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 1.5rem; font-weight: 700; color: var(--text);
+    }
+    nav .logo img { height: 32px; width: auto; }
+    nav .nav-links { display: flex; gap: 2rem; align-items: center; }
+    nav .nav-links a { color: var(--text-dim); font-weight: 500; transition: color 0.3s; }
+    nav .nav-links a:hover, nav .nav-links a.active { color: var(--text); }
+    .mobile-menu-btn {
+      display: none; background: none; border: none;
+      color: var(--text); font-size: 1.5rem; cursor: pointer;
+    }
+
+    /* ── Page ── */
+    .page-wrapper { max-width: 1200px; margin: 0 auto; padding: 7rem 2rem 4rem; }
+
+    .page-header { text-align: center; margin-bottom: 2.5rem; }
+    .page-header h1 {
+      font-size: clamp(2rem, 4vw, 3rem); font-weight: 800;
+      background: linear-gradient(135deg, var(--text) 0%, var(--primary) 100%);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.4rem;
+    }
+    .page-header p { color: var(--text-dim); font-size: 1rem; }
+
+    /* ── Grid ── */
+    .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem; }
+
+    .news-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      display: flex; flex-direction: column;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .news-card:hover { border-color: rgba(20,184,166,0.3); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+
+    .card-image-wrap { position: relative; width: 100%; height: 192px; background: #0d1120; overflow: hidden; }
+    .card-image-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .card-image-placeholder {
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, #080f1e, #0c1830);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-image-placeholder svg { opacity: 0.2; width: 48px; height: 48px; }
+
+    .card-body { padding: 1.1rem 1.25rem; flex: 1; display: flex; flex-direction: column; gap: 0.6rem; }
+    .card-meta { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .card-source { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--primary); }
+    .card-time { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
+    .card-headline { font-size: 0.975rem; font-weight: 700; color: var(--text); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-summary { font-size: 0.85rem; color: var(--text-dim); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
+
+    .card-actions { display: flex; gap: 0.6rem; padding: 0 1.25rem 1.25rem; }
+    .btn-article {
+      flex: 1; padding: 0.55rem 0.5rem; border-radius: 9px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text-dim); font-size: 0.82rem; font-weight: 500;
+      cursor: pointer; text-decoration: none; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+      font-family: inherit;
+    }
+    .btn-article:hover { border-color: var(--text-dim); color: var(--text); }
+    .btn-share {
+      flex: 1.2; padding: 0.55rem 0.5rem; border-radius: 9px;
+      border: none; background: var(--primary); color: #000;
+      font-size: 0.82rem; font-weight: 700; cursor: pointer;
+      transition: background 0.2s; display: flex; align-items: center;
+      justify-content: center; gap: 0.35rem; font-family: inherit;
+    }
+    .btn-share:hover { background: var(--primary-dark); }
+
+    /* ── States ── */
+    .state-box { grid-column: 1 / -1; text-align: center; padding: 5rem 2rem; color: var(--text-dim); }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(20,184,166,0.15); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.75s linear infinite; margin: 0 auto 1.25rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+      z-index: 2000; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px;
+      width: 100%; max-width: 860px; max-height: 95vh; overflow-y: auto;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.2rem 1.5rem; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--bg-card);
+      border-radius: 20px 20px 0 0; z-index: 5;
+    }
+    .modal-header h2 { font-size: 1.05rem; font-weight: 700; }
+    .modal-close { background: none; border: none; color: var(--text-dim); font-size: 1.6rem; cursor: pointer; line-height: 1; padding: 0 0.2rem; transition: color 0.2s; }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding: 1.5rem; }
+
+    /* canvas preview */
+    .canvas-wrap { background: #080808; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 0.75rem; }
+    #postCanvas { width: 100%; height: auto; border-radius: 6px; display: block; }
+
+    /* controls */
+    .modal-controls { display: flex; flex-direction: column; gap: 1rem; }
+    .ctrl-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); display: block; margin-bottom: 0.4rem; }
+    .caption-box { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 0.875rem; color: var(--text); font-size: 0.82rem; line-height: 1.55; resize: vertical; min-height: 150px; font-family: inherit; transition: border-color 0.2s; }
+    .caption-box:focus { outline: none; border-color: var(--primary); }
+
+    .modal-actions { display: flex; flex-direction: column; gap: 0.55rem; margin-top: auto; }
+    .btn-dl { padding: 0.8rem; border-radius: 10px; border: none; background: var(--primary); color: #000; font-weight: 700; font-size: 0.92rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-family: inherit; }
+    .btn-dl:hover { background: var(--primary-dark); }
+    .btn-copy { padding: 0.8rem; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); font-weight: 600; font-size: 0.92rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-family: inherit; }
+    .btn-copy:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-native-share { padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(20,184,166,0.3); background: rgba(20,184,166,0.07); color: var(--primary); font-weight: 600; font-size: 0.92rem; cursor: pointer; transition: background 0.2s; display: none; align-items: center; justify-content: center; gap: 0.5rem; font-family: inherit; }
+    .btn-native-share.visible { display: flex; }
+    .btn-native-share:hover { background: rgba(20,184,166,0.14); }
+
+    /* image loading indicator inside modal */
+    .canvas-loading { font-size: 0.8rem; color: var(--text-dim); text-align: center; padding: 0.5rem 0; }
+
+    /* ── Footer ── */
+    footer { background: rgba(19,19,22,0.9); padding: 3rem 2rem; border-top: 1px solid var(--border); margin-top: 4rem; }
+    .footer-content { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 3rem; }
+    .footer-section h3 { margin-bottom: 1rem; color: var(--text); }
+    .footer-section ul { list-style: none; }
+    .footer-section ul li { margin-bottom: 0.5rem; }
+    .footer-section a, .footer-section p { color: var(--text-dim); font-size: 0.9rem; }
+    .footer-section a:hover { color: var(--primary); }
+    .footer-bottom { max-width: 1200px; margin: 2rem auto 0; padding-top: 2rem; border-top: 1px solid var(--border); text-align: center; color: var(--text-dim); font-size: 0.8rem; }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      .mobile-menu-btn { display: block; }
+      nav .nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; background: rgba(12,12,13,0.98); border-bottom: 1px solid var(--border); padding: 1.5rem; gap: 1rem; }
+      nav .nav-links.active { display: flex; }
+      .news-grid { grid-template-columns: 1fr; }
+      .modal-body { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 480px) { .page-wrapper { padding: 6rem 1rem 3rem; } }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-container">
+      <a href="/" class="logo">
+        <img src="images/logo.png" alt="Stock Score Logo" />
+        Stock Score
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="/">Home</a>
+        <a href="news.html" class="active">Market News</a>
+        <a href="privacy-policy.html">Privacy</a>
+        <a href="contact.html">Contact</a>
+      </div>
+      <button class="mobile-menu-btn" id="menuBtn">☰</button>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>Market News</h1>
+      <p>Latest financial stories, updated continuously</p>
+    </div>
+
+    <div class="news-grid" id="newsGrid">
+      <div class="state-box"><div class="spinner"></div><p>Loading market news…</p></div>
+    </div>
+  </div>
+
+  <!-- Share modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Share this story</h2>
+        <button class="modal-close" onclick="closeModal()">&#215;</button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <div class="canvas-wrap">
+            <canvas id="postCanvas" width="1080" height="1350"></canvas>
+          </div>
+          <p class="canvas-loading" id="canvasLoading" style="display:none">Fetching article image…</p>
+        </div>
+        <div class="modal-controls">
+          <div>
+            <span class="ctrl-label">Caption</span>
+            <textarea class="caption-box" id="captionBox"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-dl" id="btnShare" onclick="sharePost()">↑ Share</button>
+            <button class="btn-copy" onclick="downloadImage()">↓ Save image</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h3>Stock Score</h3>
+        <p>Your intelligent companion for stock market investing. Make data-driven decisions with confidence.</p>
+      </div>
+      <div class="footer-section">
+        <h3>Quick Links</h3>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="news.html">Market News</a></li>
+          <li><a href="contact.html">Contact Us</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h3>Legal</h3>
+        <ul><li><a href="privacy-policy.html">Privacy Policy</a></li></ul>
+      </div>
+      <div class="footer-section">
+        <h3>Connect</h3>
+        <ul>
+          <li><a href="mailto:info@stockscore.co.uk">info@stockscore.co.uk</a></li>
+          <li><a href="https://x.com/StockScoreUK" target="_blank" rel="noopener">X (Twitter)</a></li>
+          <li><a href="https://threads.net/@StockScoreUK" target="_blank" rel="noopener">Threads</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Stock Score. All rights reserved. Investment involves risk. Past performance does not guarantee future results.</p>
+    </div>
+  </footer>
+
+  <script>
+  // ─── Feed configuration ────────────────────────────────────────────────────
+  const FEEDS = [
+    { label: 'Top Stories', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories',                                                   source: 'Yahoo Finance' },
+  ];
+
+  const RSS2JSON   = 'https://api.rss2json.com/v1/api.json?rss_url=';
+  const ALLORIGINS = 'https://api.allorigins.win/get?url=';
+
+  // ─── State ────────────────────────────────────────────────────────────────
+  let articles = [];
+  let currentIdx = null;
+
+  // ─── Boot ─────────────────────────────────────────────────────────────────
+  loadFeed(0);
+
+  // ─── Nav ──────────────────────────────────────────────────────────────────
+  document.getElementById('menuBtn').addEventListener('click', () => {
+    document.getElementById('navLinks').classList.toggle('active');
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('nav')) document.getElementById('navLinks').classList.remove('active');
+  });
+
+  // ─── RSS fetch ────────────────────────────────────────────────────────────
+  async function loadFeed(idx) {
+    showLoading();
+    const feedUrl = FEEDS[idx].url;
+
+    try {
+      // Try allorigins XML first — preserves per-item <source> tags (e.g. "MT Newswires")
+      let items = await fetchViaAllOrigins(feedUrl);
+
+      // Fallback: rss2json if allorigins fails (loses per-item source but still gets articles)
+      if (!items) items = await fetchViaRss2Json(feedUrl);
+
+      if (!items || items.length === 0) {
+        showState('No stories found right now. Try another category or check back soon.');
+        return;
+      }
+
+      const feedSource = FEEDS[idx].source; // fallback publisher name for this feed
+      articles = dedupe(items, 'link').slice(0, 24).map(a => ({
+        ...a,
+        source: a.source || feedSource, // per-article source wins (e.g. "MT Newswires"), fallback to feed name
+      }));
+      renderGrid(articles);
+    } catch (err) {
+      showState('Could not load news right now. Please try again shortly.');
+      console.error(err);
+    }
+  }
+
+  async function fetchViaRss2Json(feedUrl) {
+    try {
+      const resp = await fetchWithTimeout(RSS2JSON + encodeURIComponent(feedUrl), 7000);
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      if (data.status !== 'ok' || !data.items?.length) return null;
+
+      return data.items.map(item => ({
+        title:   cleanText(item.title),
+        link:    item.link,
+        pubDate: item.pubDate,
+        image:   item.thumbnail || item.enclosure?.link || '',
+        summary: stripHtml(item.description),
+        source:  cleanFeedTitle(data.feed?.title, feedUrl),
+      }));
+    } catch { return null; }
+  }
+
+  async function fetchViaAllOrigins(feedUrl) {
+    try {
+      const resp = await fetchWithTimeout(ALLORIGINS + encodeURIComponent(feedUrl), 10000);
+      if (!resp.ok) return null;
+      const { contents } = await resp.json();
+      // allorigins sometimes returns content as a base64 data URI
+      let xmlStr = contents;
+      if (typeof contents === 'string' && contents.includes(';base64,')) {
+        xmlStr = atob(contents.split(';base64,')[1]);
+      }
+      return parseRssXml(xmlStr, feedUrl);
+    } catch { return null; }
+  }
+
+  function parseRssXml(xmlStr, feedUrl) {
+    const doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
+    const ns = { media: 'http://search.yahoo.com/mrss/' };
+    const feedTitle = cleanFeedTitle(doc.querySelector('channel > title, feed > title')?.textContent?.trim(), feedUrl);
+
+    return [...doc.querySelectorAll('item, entry')].map(node => {
+      const get = tag => node.querySelector(tag)?.textContent?.trim() || '';
+      const attr = (tag, a) => node.querySelector(tag)?.getAttribute(a) || '';
+
+      // Image: try several locations in order of reliability
+      const image =
+        attr('media\\:content, content', 'url') ||
+        attr('media\\:thumbnail, thumbnail', 'url') ||
+        attr('enclosure', 'url') ||
+        extractFirstImg(get('description')) ||
+        extractFirstImg(get('encoded')) ||
+        '';
+
+      const link = get('link') || node.querySelector('link')?.getAttribute('href') || '';
+
+      return {
+        title:   cleanText(get('title')),
+        link,
+        pubDate: get('pubDate') || get('published') || get('updated'),
+        image:   image.startsWith('//') ? 'https:' + image : image,
+        summary: stripHtml(get('description') || get('summary')),
+        source:  cleanText(get('source')) || feedTitle, // per-item source tag (e.g. "MT Newswires")
+      };
+    }).filter(a => a.title && a.link);
+  }
+
+  // ─── Render grid ──────────────────────────────────────────────────────────
+  function renderGrid(items) {
+    const grid = document.getElementById('newsGrid');
+    grid.innerHTML = '';
+
+    items.forEach((article, i) => {
+      const card = document.createElement('div');
+      card.className = 'news-card';
+
+      const thumbHtml = article.image
+        ? `<img src="${esc(article.image)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML=imgPlaceholder()" />`
+        : imgPlaceholder();
+
+      card.innerHTML = `
+        <div class="card-image-wrap">${thumbHtml}</div>
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="card-time">${relTime(article.pubDate)}</span>
+          </div>
+          <div class="card-headline">${esc(article.title)}</div>
+          <div class="card-summary">${esc(article.summary)}</div>
+        </div>
+        <div class="card-actions">
+          <a href="${esc(article.link)}" target="_blank" rel="noopener noreferrer" class="btn-article">Read ↗</a>
+          <button class="btn-share" onclick="openShareModal(${i})">↑ Share</button>
+        </div>`;
+
+      grid.appendChild(card);
+    });
+  }
+
+  function imgPlaceholder() {
+    return `<div class="card-image-placeholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>`;
+  }
+
+  // ─── Share modal ──────────────────────────────────────────────────────────
+  async function openShareModal(idx) {
+    currentIdx = idx;
+    const article = articles[idx];
+
+    document.getElementById('modalOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    buildCaption(article);
+    drawCard(article); // draw immediately — no waiting
+
+    // Fetch richer og:image + og:description in background, then update
+    if (article.link && !article._ogFetched) {
+      article._ogFetched = true;
+      fetchOgMeta(article.link).then(meta => {
+        if (currentIdx !== idx) return; // user has moved on
+        let redraw = false;
+        if (meta.image && meta.image !== article.image) {
+          article.image = meta.image; // higher-res og:image replaces small RSS thumbnail
+          redraw = true;
+        }
+        if (meta.description) {
+          article.summary = meta.description; // richer description for caption
+          buildCaption(article);
+        }
+        if (redraw) drawCard(article);
+      });
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+    currentIdx = null;
+  }
+
+  document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Image loading removed — postcard uses generative backgrounds (see drawGenerativeBackground)
+
+  // ─── Dynamic hashtag generation ───────────────────────────────────────────
+  // Company name → ticker mapping for $TICKER hashtags
+  const COMPANIES = [
+    // Big Tech
+    ['Apple', 'AAPL'], ['Microsoft', 'MSFT'], ['Google', 'GOOGL'], ['Alphabet', 'GOOGL'],
+    ['Amazon', 'AMZN'], ['Meta', 'META'], ['Tesla', 'TSLA'], ['Nvidia', 'NVDA'],
+    ['Netflix', 'NFLX'], ['Oracle', 'ORCL'], ['Salesforce', 'CRM'], ['Intel', 'INTC'],
+    ['AMD', 'AMD'], ['Qualcomm', 'QCOM'], ['Broadcom', 'AVGO'], ['Adobe', 'ADBE'],
+    ['Palantir', 'PLTR'], ['Snowflake', 'SNOW'], ['Uber', 'UBER'], ['Airbnb', 'ABNB'],
+    ['Spotify', 'SPOT'], ['CrowdStrike', 'CRWD'], ['Shopify', 'SHOP'],
+    // Finance
+    ['JPMorgan', 'JPM'], ['Goldman Sachs', 'GS'], ['Goldman', 'GS'],
+    ['Morgan Stanley', 'MS'], ['Bank of America', 'BAC'], ['Wells Fargo', 'WFC'],
+    ['Citigroup', 'C'], ['Citi', 'C'], ['BlackRock', 'BLK'], ['Berkshire', 'BRK.B'],
+    ['Visa', 'V'], ['Mastercard', 'MA'], ['PayPal', 'PYPL'],
+    // Energy
+    ['ExxonMobil', 'XOM'], ['Exxon', 'XOM'], ['Chevron', 'CVX'],
+    ['Shell', 'SHEL'], ['BP', 'BP'],
+    // Healthcare
+    ['Pfizer', 'PFE'], ['Moderna', 'MRNA'], ['Eli Lilly', 'LLY'],
+    ['Johnson & Johnson', 'JNJ'], ['UnitedHealth', 'UNH'], ['AstraZeneca', 'AZN'],
+    // Retail / Consumer
+    ['Walmart', 'WMT'], ['Target', 'TGT'], ['Nike', 'NKE'], ['Costco', 'COST'],
+    ["McDonald's", 'MCD'], ['Starbucks', 'SBUX'], ['Amazon', 'AMZN'],
+    // Autos
+    ['Tesla', 'TSLA'], ['Ford', 'F'], ['General Motors', 'GM'], ['Toyota', 'TM'],
+    // Airlines
+    ['Delta', 'DAL'], ['United Airlines', 'UAL'], ['American Airlines', 'AAL'],
+    // UK
+    ['HSBC', 'HSBA'], ['Barclays', 'BARC'], ['Lloyds', 'LLOY'],
+    ['Rolls-Royce', 'RR'], ['Vodafone', 'VOD'], ['GSK', 'GSK'],
+  ];
+
+  function generateHashtags(article) {
+    const lowerText = ((article.title || '') + ' ' + (article.summary || '')).toLowerCase();
+    const fullText  = (article.title || '') + ' ' + (article.summary || '');
+
+    // Topic hashtags (max 2)
+    const topics = [
+      ['Earnings',    ['earnings', 'eps', 'revenue', 'profit', 'quarterly', 'beat', 'miss', 'layoff', 'layoffs']],
+      ['Economy',     ['economy', 'economic', 'gdp', 'recession', 'unemployment', 'jobs', 'payroll']],
+      ['Fed',         ['federal reserve', 'fomc', 'interest rate', 'rate cut', 'rate hike', 'powell']],
+      ['Inflation',   ['inflation', 'cpi', 'pce', 'deflation', 'tariff', 'tariffs']],
+      ['StockMarket', ['stock market', 'equity', 'rally', 'selloff', 'bull market', 'bear market', 's&p', 'nasdaq', 'dow']],
+      ['Tech',        ['artificial intelligence', 'ai ', ' ai,', 'semiconductor', 'chip', 'software', 'cloud']],
+      ['Crypto',      ['bitcoin', 'crypto', 'ethereum', 'blockchain', 'btc', 'eth']],
+      ['Energy',      ['oil', 'crude', 'opec', 'natural gas', 'renewables', 'solar']],
+      ['Investing',   ['investing', 'portfolio', 'dividend', 'yield', 'etf', 'fund']],
+    ];
+
+    const topicTags = [];
+    for (const [tag, keywords] of topics) {
+      if (keywords.some(kw => lowerText.includes(kw))) {
+        topicTags.push('#' + tag);
+        if (topicTags.length === 2) break;
+      }
+    }
+
+    // Company $TICKER tags (max 2) — case-sensitive scan of original text
+    const companyTags = [];
+    for (const [name, ticker] of COMPANIES) {
+      if (fullText.includes(name)) {
+        const tag = '$' + ticker;
+        if (!companyTags.includes(tag)) companyTags.push(tag);
+        if (companyTags.length === 2) break;
+      }
+    }
+
+    return ['#StockScore', ...topicTags, ...companyTags].join(' ');
+  }
+
+  // ─── Caption builder ──────────────────────────────────────────────────────
+  function buildCaption(article) {
+    const summary = (article.summary || '').slice(0, 280);
+    const lines = [
+      article.title || '',
+      ...(summary ? ['', summary] : []),
+      '',
+      generateHashtags(article),
+    ];
+    document.getElementById('captionBox').value = lines.join('\n');
+  }
+
+  // ─── Canvas card (1080 × 1350 — 4:5) ─────────────────────────────────────
+  //
+  // Layout zones (all pixel values, canvas coords):
+  //   0   – 168  : teal header bar
+  //   168 – 616  : article image OR branded placeholder (448px)
+  //   616 – 680  : breathing room
+  //   680 – 960  : headline   (up to 3 lines × 93px)
+  //   960 – 998  : teal separator
+  //   998 – 1180 : summary    (up to 3 lines × 60px)
+  //   1180– 1350 : footer
+  //
+  const CW = 1080, CH = 1350;
+  const IMG_Y = 168, IMG_H = 448;
+  const HL_Y  = 680;
+  const SEP_Y = 960;
+  const SUM_Y = 1005;
+  const FT_Y  = 1180;
+
+  const C = {
+    bgFrom: '#060d1c', bgTo: '#04080f',
+    teal: '#14b8a6', tealDark: '#0d9488',
+    white: '#ffffff', gray: '#8ea8bb', grayLight: '#b0c8d8',
+    badgeBg: 'rgba(20,184,166,0.14)', badgeBorder: 'rgba(20,184,166,0.45)',
+    sep: 'rgba(20,184,166,0.35)', footerLine: 'rgba(20,184,166,0.18)',
+  };
+
+  function drawCardBase(ctx, article) {
+    ctx.clearRect(0, 0, CW, CH);
+    // 1. Background
+    const bg = ctx.createLinearGradient(0, 0, CW * 0.5, CH);
+    bg.addColorStop(0, C.bgFrom); bg.addColorStop(1, C.bgTo);
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, CW, CH);
+    // 2. Dot grid texture
+    drawDotGrid(ctx);
+    // 3. Corner glow
+    const glow = ctx.createRadialGradient(CW, 0, 40, CW, 0, 680);
+    glow.addColorStop(0, 'rgba(20,184,166,0.09)'); glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, CW, CH);
+  }
+
+  function drawCardContent(ctx, article, articleImg) {
+    const hh = IMG_Y; // 168px header height
+
+    // 4. Image zone: real photo if loaded, else generative
+    if (articleImg) {
+      drawImageCover(ctx, articleImg, 0, IMG_Y, CW, IMG_H);
+      // Darken the photo so text overlays stay readable
+      const dim = ctx.createLinearGradient(0, IMG_Y, 0, IMG_Y + IMG_H);
+      dim.addColorStop(0, 'rgba(0,0,0,0.15)');
+      dim.addColorStop(1, 'rgba(0,0,0,0.55)');
+      ctx.fillStyle = dim; ctx.fillRect(0, IMG_Y, CW, IMG_H);
+    } else {
+      drawGenerativeBackground(ctx, article);
+    }
+
+    // 5. Header bar
+    drawHeader(ctx, hh);
+
+    // 6. Headline only — up to 5 lines, description is in the caption not the image
+    drawWrappedText(ctx, article.title || '', {
+      x: 72, y: HL_Y, maxW: CW - 144, lh: 82,
+      font: '800 56px Inter, Arial, sans-serif',
+      color: C.white, maxLines: 5,
+    });
+
+    // 7. Footer
+    drawFooter(ctx, FT_Y, article);
+  }
+
+  function drawCard(article) {
+    const canvas = document.getElementById('postCanvas');
+    const ctx    = canvas.getContext('2d');
+
+    drawCardBase(ctx, article);
+    drawCardContent(ctx, article, null); // draw immediately with generative bg
+
+    // Load logo
+    const logo = new Image();
+    logo.crossOrigin = 'anonymous';
+    logo.onload = () => { drawHeaderWithLogo(ctx, logo, IMG_Y); };
+    logo.onerror = () => {};
+    logo.src = '/images/logo.png';
+
+    // Load article image via wsrv.nl proxy — adds CORS headers so canvas can draw it
+    if (article.image) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        drawCardBase(ctx, article);
+        drawCardContent(ctx, article, img);
+        const logo2 = new Image();
+        logo2.crossOrigin = 'anonymous';
+        logo2.onload = () => { drawHeaderWithLogo(ctx, logo2, IMG_Y); };
+        logo2.src = '/images/logo.png';
+      };
+      img.onerror = () => {}; // proxy failed — generative bg already drawn, keep it
+      img.src = 'https://wsrv.nl/?url=' + encodeURIComponent(article.image) + '&w=1080&h=448&fit=cover&output=jpg';
+    }
+  }
+
+  function drawImageCover(ctx, img, x, y, w, h) {
+    const scale = Math.max(w / img.width, h / img.height);
+    const sw = img.width * scale, sh = img.height * scale;
+    const sx = x + (w - sw) / 2, sy = y + (h - sh) / 2;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.drawImage(img, sx, sy, sw, sh);
+    ctx.restore();
+  }
+
+  // ── Drawing helpers ────────────────────────────────────────────────────────
+
+  function drawDotGrid(ctx) {
+    ctx.fillStyle = 'rgba(255,255,255,0.02)';
+    const sp = 52;
+    for (let x = sp; x < CW; x += sp)
+      for (let y = sp; y < CH; y += sp) {
+        ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+      }
+  }
+
+  // ── Generative financial background (always used — no external image dependency) ──────────
+  // Draws a Bloomberg-terminal style visualization in the image zone (y: IMG_Y to IMG_Y+IMG_H).
+  // Variant chosen by article topic keywords.
+  function drawGenerativeBackground(ctx, article) {
+    const x0 = 0, y0 = IMG_Y, w = CW, h = IMG_H;
+    const text = ((article.title || '') + ' ' + (article.summary || '')).toLowerCase();
+
+    // Base fill — slightly different shade from card background for depth
+    const base = ctx.createLinearGradient(0, y0, w, y0 + h);
+    base.addColorStop(0, '#070e1f');
+    base.addColorStop(1, '#050912');
+    ctx.fillStyle = base; ctx.fillRect(x0, y0, w, h);
+
+    // Fine teal grid
+    ctx.strokeStyle = 'rgba(20,184,166,0.07)'; ctx.lineWidth = 1;
+    const gs = 72;
+    for (let gx = 0; gx < w; gx += gs) { ctx.beginPath(); ctx.moveTo(x0 + gx, y0); ctx.lineTo(x0 + gx, y0 + h); ctx.stroke(); }
+    for (let gy = 0; gy < h; gy += gs) { ctx.beginPath(); ctx.moveTo(x0, y0 + gy); ctx.lineTo(x0 + w, y0 + gy); ctx.stroke(); }
+
+    // Pick chart variant by topic
+    const isCrypto   = /bitcoin|crypto|ethereum|blockchain|defi/.test(text);
+    const isEarnings = /earn|revenue|profit|eps|quarterly/.test(text);
+
+    if (isCrypto) {
+      drawNetworkPattern(ctx, x0, y0, w, h);
+    } else if (isEarnings) {
+      drawBarPattern(ctx, x0, y0, w, h);
+    } else {
+      drawLineChartPattern(ctx, x0, y0, w, h);
+    }
+
+    // Bottom fade so the zone blends into the card
+    const fade = ctx.createLinearGradient(0, y0 + h * 0.55, 0, y0 + h);
+    fade.addColorStop(0, 'transparent');
+    fade.addColorStop(1, C.bgFrom);
+    ctx.fillStyle = fade; ctx.fillRect(x0, y0, w, h);
+
+    // Subtle scanlines (CRT / terminal feel)
+    for (let sl = y0; sl < y0 + h; sl += 5) {
+      ctx.fillStyle = 'rgba(0,0,0,0.035)';
+      ctx.fillRect(x0, sl, w, 2);
+    }
+  }
+
+  // Variant A: multi-line market chart with volume bars (default)
+  function drawLineChartPattern(ctx, x0, y0, w, h) {
+    // Volume histogram at bottom
+    const bars = 32, bw = w / bars, barZone = h * 0.28;
+    for (let i = 0; i < bars; i++) {
+      const bh = (Math.abs(Math.sin(i * 1.1) * 0.6 + Math.cos(i * 0.5 + 0.8) * 0.4)) * barZone;
+      const g = ctx.createLinearGradient(0, y0 + h - bh, 0, y0 + h);
+      g.addColorStop(0, 'rgba(20,184,166,0.30)');
+      g.addColorStop(1, 'rgba(20,184,166,0.04)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x0 + i * bw + 2, y0 + h - bh, bw - 4, bh);
+    }
+
+    // Two chart lines
+    [[0.42, 0.18, 'rgba(20,184,166,0.9)', 'rgba(20,184,166,0.18)'],
+     [0.58, 0.10, 'rgba(13,148,136,0.5)', 'rgba(13,148,136,0.06)']].forEach(([base, amp, stroke, fillC]) => {
+      const pts = Array.from({ length: 21 }, (_, i) => ({
+        x: x0 + (i / 20) * w,
+        y: y0 + h * base + (Math.sin(i * 1.3 + 0.5) * 0.55 + Math.cos(i * 0.6) * 0.45) * h * amp,
+      }));
+
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        const cpx = (pts[i-1].x + pts[i].x) / 2;
+        ctx.bezierCurveTo(cpx, pts[i-1].y, cpx, pts[i].y, pts[i].x, pts[i].y);
+      }
+      ctx.lineTo(pts[pts.length-1].x, y0 + h); ctx.lineTo(pts[0].x, y0 + h); ctx.closePath();
+      const fill = ctx.createLinearGradient(0, y0, 0, y0 + h);
+      fill.addColorStop(0, fillC); fill.addColorStop(1, 'transparent');
+      ctx.fillStyle = fill; ctx.fill();
+
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        const cpx = (pts[i-1].x + pts[i].x) / 2;
+        ctx.bezierCurveTo(cpx, pts[i-1].y, cpx, pts[i].y, pts[i].x, pts[i].y);
+      }
+      ctx.strokeStyle = stroke; ctx.lineWidth = stroke.includes('0.9') ? 3 : 1.5; ctx.stroke();
+
+      // Glowing dots on main line
+      if (stroke.includes('0.9')) {
+        [4, 8, 12, 16].forEach(idx => {
+          const p = pts[idx];
+          ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+          ctx.fillStyle = '#14b8a6'; ctx.fill();
+          const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 22);
+          glow.addColorStop(0, 'rgba(20,184,166,0.45)'); glow.addColorStop(1, 'transparent');
+          ctx.fillStyle = glow;
+          ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, Math.PI * 2); ctx.fill();
+        });
+      }
+    });
+  }
+
+  // Variant B: bar chart (earnings/economy)
+  function drawBarPattern(ctx, x0, y0, w, h) {
+    const bars = 16, bw = w / bars, padX = bw * 0.2;
+    for (let i = 0; i < bars; i++) {
+      const pct = 0.15 + Math.abs(Math.sin(i * 0.9 + 1) * 0.55 + Math.cos(i * 0.4) * 0.3);
+      const bh  = h * 0.65 * pct;
+      const bx  = x0 + i * bw + padX;
+      const by  = y0 + h * 0.72 - bh;
+      const up  = Math.sin(i * 1.7) > 0;
+      const col = up ? 'rgba(20,184,166,' : 'rgba(244,63,94,';
+      const g = ctx.createLinearGradient(0, by, 0, by + bh);
+      g.addColorStop(0, col + '0.7)'); g.addColorStop(1, col + '0.15)');
+      ctx.fillStyle = g;
+      ctx.fillRect(bx, by, bw - padX * 2, bh);
+    }
+    // Horizontal reference line
+    ctx.strokeStyle = 'rgba(20,184,166,0.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 6]);
+    ctx.beginPath(); ctx.moveTo(x0, y0 + h * 0.5); ctx.lineTo(x0 + w, y0 + h * 0.5); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Variant C: network graph (crypto/tech)
+  function drawNetworkPattern(ctx, x0, y0, w, h) {
+    const nodes = Array.from({ length: 18 }, (_, i) => ({
+      x: x0 + 80 + ((i * 137.5) % (w - 160)),
+      y: y0 + 60 + ((i * 83.7) % (h - 120)),
+      r: 4 + (i % 3) * 3,
+    }));
+    // Edges
+    ctx.strokeStyle = 'rgba(20,184,166,0.12)'; ctx.lineWidth = 1;
+    nodes.forEach((a, i) => nodes.slice(i + 1).forEach(b => {
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (d < 280) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    }));
+    // Nodes
+    nodes.forEach(n => {
+      const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 4);
+      glow.addColorStop(0, 'rgba(20,184,166,0.5)'); glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(n.x, n.y, n.r * 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#14b8a6'; ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  // Matches the Flutter share page header style:
+  // Left-to-right gradient (#00786E → #00D2BE), text on left, logo directly on gradient on right
+  function drawHeaderGradient(ctx, hh) {
+    const grad = ctx.createLinearGradient(0, 0, CW, 0);
+    grad.addColorStop(0, '#00786e');
+    grad.addColorStop(1, '#00d2be');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CW, hh);
+  }
+
+  function drawHeaderText(ctx, hh) {
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+
+    // "Stock Score" — brand name, bold white
+    ctx.font = 'bold 58px Inter, Arial, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 6;
+    ctx.fillText('Stock Score', 60, hh / 2 - 22);
+
+    // "Market News" — mint subtitle
+    ctx.font = '500 30px Inter, Arial, sans-serif';
+    ctx.fillStyle = '#dcffdc';
+    ctx.shadowBlur = 0;
+    ctx.fillText('Market News', 60, hh / 2 + 28);
+
+    ctx.restore();
+  }
+
+  function drawLogoSquare(ctx, hh, logo) {
+    const sqSize = 104;
+    const sqX = CW - 60 - sqSize;
+    const sqY = (hh - sqSize) / 2;
+    const r = 14;
+
+    if (logo) {
+      // Draw logo directly on the gradient — no white background
+      // A subtle drop shadow for depth without a white box
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.35)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+      roundRect(ctx, sqX, sqY, sqSize, sqSize, r);
+      ctx.clip();
+      ctx.drawImage(logo, sqX, sqY, sqSize, sqSize);
+      ctx.restore();
+    }
+    // When logo hasn't loaded yet, draw nothing — gradient shows through cleanly
+  }
+
+  function drawHeader(ctx, hh) {
+    drawHeaderGradient(ctx, hh);
+    drawHeaderText(ctx, hh);
+    // Logo draws once loaded — no placeholder square needed
+  }
+
+  function drawHeaderWithLogo(ctx, logo, hh) {
+    drawHeaderGradient(ctx, hh);
+    drawHeaderText(ctx, hh);
+    drawLogoSquare(ctx, hh, logo);
+  }
+
+  function drawSourceBadge(ctx, source, y) {
+    ctx.save();
+    ctx.font = '600 20px Inter, Arial, sans-serif'; ctx.textBaseline = 'middle';
+    const label = source;
+    const tw = ctx.measureText(label).width;
+    const px = 18, bh = 36, r = 18, bx = 72;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(ctx, bx, y, tw + px * 2, bh, r); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillText(label, bx + px, y + bh / 2);
+    ctx.restore();
+  }
+
+  function drawFooter(ctx, fy, article) {
+    // Background strip
+    ctx.fillStyle = 'rgba(255,255,255,0.022)'; ctx.fillRect(0, fy, CW, CH - fy);
+    ctx.strokeStyle = C.footerLine; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(CW, fy); ctx.stroke();
+
+    ctx.save(); ctx.textBaseline = 'middle';
+    const mid = fy + (CH - fy) / 2;
+
+    // Left — timestamp
+    const timeStr = absTime(article.pubDate);
+    if (timeStr) {
+      ctx.textAlign = 'left';
+      ctx.font = '500 20px Inter, Arial, sans-serif'; ctx.fillStyle = C.gray;
+      ctx.fillText(timeStr, 72, mid);
+    }
+
+    // Right — brand
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 28px Inter, Arial, sans-serif'; ctx.fillStyle = C.teal;
+    ctx.fillText('stockscore.co.uk', CW - 72, mid - 18);
+    ctx.font = '400 20px Inter, Arial, sans-serif'; ctx.fillStyle = C.gray;
+    ctx.fillText('Smarter stock analysis', CW - 72, mid + 18);
+
+    ctx.restore();
+  }
+
+  function drawWrappedText(ctx, text, { x, y, maxW, lh, font, color, maxLines }) {
+    ctx.save(); ctx.font = font; ctx.fillStyle = color; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    const words = text.split(' ');
+    let line = '', curY = y, count = 0;
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxW && line) {
+        if (count === maxLines - 1) {
+          let t = line;
+          while (t.length && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+          ctx.fillText(t + '…', x, curY);
+          curY += lh; count++;
+          ctx.restore(); return curY;
+        }
+        ctx.fillText(line, x, curY); line = word; curY += lh; count++;
+      } else { line = test; }
+    }
+    if (line && count < maxLines) { ctx.fillText(line, x, curY); curY += lh; }
+    ctx.restore(); return curY;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  // ─── Actions ──────────────────────────────────────────────────────────────
+  function downloadImage() {
+    const canvas = document.getElementById('postCanvas');
+    const slug = (articles[currentIdx]?.title || 'market-news')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 44);
+    const a = document.createElement('a');
+    a.download = 'stockscore-' + slug + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }
+
+  async function sharePost() {
+    const canvas = document.getElementById('postCanvas');
+    const article = articles[currentIdx];
+    const caption = document.getElementById('captionBox').value;
+    const btn = document.getElementById('btnShare');
+    btn.textContent = '…';
+
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    const file = new File([blob], 'stockscore-post.png', { type: 'image/png' });
+
+    // Mobile/tablet: native share sheet → Instagram, WhatsApp, X, etc.
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text: caption });
+      } catch (e) {
+        if (e.name !== 'AbortError') console.warn('Share error:', e);
+      }
+      btn.textContent = '↑ Share';
+      return; // always return — never fall through to clipboard on native-share devices
+    }
+
+    // Desktop: copy image + caption to clipboard so user can paste both
+    try {
+      await navigator.clipboard.write([new ClipboardItem({
+        'image/png': blob,
+        'text/plain': new Blob([caption], { type: 'text/plain' }),
+      })]);
+      btn.textContent = '✓ Copied!';
+      showShareToast('Image & caption copied — paste anywhere');
+    } catch (_) {
+      // Multi-type clipboard not supported — try image only, caption in toast
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+        showShareToast('Image copied. Caption: ' + caption.slice(0, 60) + '…');
+      } catch (__) {
+        downloadImage();
+        btn.textContent = '✓ Saved!';
+        showShareToast('Image saved to downloads');
+      }
+    }
+    setTimeout(() => { btn.textContent = '↑ Share'; }, 2500);
+  }
+
+
+  function showShareToast(msg) {
+    let t = document.getElementById('shareToast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'shareToast';
+      t.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);' +
+        'background:rgba(20,184,166,0.92);color:#fff;padding:0.6rem 1.2rem;border-radius:8px;' +
+        'font-size:0.85rem;z-index:9999;pointer-events:none;transition:opacity 0.3s;white-space:nowrap;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._hide);
+    t._hide = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+  }
+
+  // ─── Utilities ────────────────────────────────────────────────────────────
+  function fetchWithTimeout(url, ms) {
+    return fetch(url, { signal: AbortSignal.timeout(ms) });
+  }
+
+  function showLoading() {
+    document.getElementById('newsGrid').innerHTML =
+      '<div class="state-box"><div class="spinner"></div><p>Loading latest stories…</p></div>';
+  }
+
+  function showState(msg) {
+    document.getElementById('newsGrid').innerHTML =
+      `<div class="state-box"><p>${esc(msg)}</p></div>`;
+  }
+
+  function relTime(dateStr) {
+    if (!dateStr) return '';
+    const ms = Date.parse(dateStr);
+    if (isNaN(ms)) return '';
+    const diff = Date.now() - ms;
+    if (diff < 3600000)  return Math.floor(diff / 60000)   + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000)  + 'h ago';
+    return Math.floor(diff / 86400000) + 'd ago';
+  }
+
+  function absTime(dateStr) {
+    if (!dateStr) return '';
+    const ms = Date.parse(dateStr);
+    if (isNaN(ms)) return '';
+    const d = new Date(ms);
+    const day   = d.getDate();
+    const month = d.toLocaleString('en-GB', { month: 'short' });
+    const hh    = String(d.getHours()).padStart(2, '0');
+    const mm    = String(d.getMinutes()).padStart(2, '0');
+    return `${day} ${month}, ${hh}:${mm}`;
+  }
+
+  function stripHtml(html) {
+    return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').trim();
+  }
+
+  function cleanText(s) {
+    return (s || '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&#039;/g,"'").replace(/&quot;/g,'"').trim();
+  }
+
+  function extractFirstImg(html) {
+    const m = (html || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+    return m ? m[1] : '';
+  }
+
+  // Scrape og:image from an article URL via allorigins proxy
+  async function fetchOgMeta(articleUrl) {
+    try {
+      const resp = await fetchWithTimeout(ALLORIGINS + encodeURIComponent(articleUrl), 9000);
+      if (!resp.ok) return {};
+      const { contents } = await resp.json();
+      const html = contents || '';
+      const pick = prop => {
+        const m = html.match(new RegExp(`<meta[^>]+property=["']${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))
+                || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${prop}["']`, 'i'))
+                || html.match(new RegExp(`<meta[^>]+name=["']${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))
+                || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${prop}["']`, 'i'));
+        return m ? m[1] : '';
+      };
+      return {
+        image:       pick('og:image'),
+        description: pick('og:description') || pick('description'),
+      };
+    } catch { return {}; }
+  }
+
+  // Map known hostnames to clean brand names
+  const SOURCE_NAMES = {
+    'search.cnbc.com': 'CNBC', 'cnbc.com': 'CNBC',
+    'uk.investing.com': 'Investing.com', 'investing.com': 'Investing.com',
+    'feeds.reuters.com': 'Reuters', 'reuters.com': 'Reuters',
+    'bloomberg.com': 'Bloomberg', 'ft.com': 'Financial Times',
+    'marketwatch.com': 'MarketWatch', 'wsj.com': 'Wall Street Journal',
+    'finance.yahoo.com': 'Yahoo Finance', 'feeds.finance.yahoo.com': 'Yahoo Finance',
+    'stocktitan.net': 'StockTitan', 'www.stocktitan.net': 'StockTitan',
+  };
+
+  function sourceName(url) {
+    try {
+      const host = new URL(url).hostname.replace(/^(www\.|feeds\.|rss\.)/, '');
+      return SOURCE_NAMES[host] || SOURCE_NAMES[new URL(url).hostname] || host;
+    } catch { return 'News'; }
+  }
+
+  // Strip site suffixes from rss2json feed titles (e.g. "CNBC | Latest News" → "CNBC")
+  function cleanFeedTitle(title, feedUrl) {
+    if (!title) return sourceName(feedUrl);
+    // Take the part before common separators like |, -, –
+    const clean = title.split(/\s*[|\-–]\s*/)[0].trim();
+    return clean || sourceName(feedUrl);
+  }
+
+  function dedupe(arr, key) {
+    const seen = new Set();
+    return arr.filter(item => { const v = item[key]; if (seen.has(v)) return false; seen.add(v); return true; });
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  </script>
+</body>
+</html>
