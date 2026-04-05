@@ -230,7 +230,7 @@ async function main() {
   const xText      = buildCaption(article, 280);
   const threadsText = buildCaption(article, 500);
   const igText      = buildCaption(article, 2200);
-  const imageUrl    = await cardImageUrl(article);
+  const imageUrl    = cardImageUrl(article);
 
   console.log('\n--- X caption ---');
   console.log(xText);
