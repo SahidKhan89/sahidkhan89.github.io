@@ -103,7 +103,7 @@ function cardImageUrl(article) {
     publisher: article.publisher || '',
     thumbnail: article.thumbnail || '',
     pubDate:   article.provider_publish_time
-      ? new Date(article.provider_publish_time).toISOString()
+      ? new Date(article.provider_publish_time * 1000).toISOString()
       : '',
   });
   return `${BACKEND_URL}/market-news/card-image?${p.toString()}`;
