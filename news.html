@@ -180,8 +180,8 @@
     /* controls */
     .modal-controls { display: flex; flex-direction: column; gap: 1rem; }
     .ctrl-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); display: block; margin-bottom: 0.4rem; }
-    .caption-box { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 0.875rem; color: var(--text); font-size: 0.82rem; line-height: 1.55; resize: vertical; min-height: 150px; font-family: inherit; transition: border-color 0.2s; }
-    .caption-box:focus { outline: none; border-color: var(--primary); }
+    .caption-box { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 0.875rem; color: var(--text); font-size: 0.82rem; line-height: 1.55; resize: none; min-height: 260px; font-family: inherit; cursor: default; }
+    .caption-box:focus { outline: none; }
 
     .modal-actions { display: flex; flex-direction: column; gap: 0.55rem; margin-top: auto; }
     .btn-dl { padding: 0.8rem; border-radius: 10px; border: none; background: var(--primary); color: #000; font-weight: 700; font-size: 0.92rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-family: inherit; }
@@ -262,7 +262,7 @@
         <div class="modal-controls">
           <div>
             <span class="ctrl-label">Caption</span>
-            <textarea class="caption-box" id="captionBox"></textarea>
+            <textarea class="caption-box" id="captionBox" readonly></textarea>
           </div>
           <div class="modal-actions">
             <button class="btn-dl" id="btnShare" onclick="sharePost()">↑ Share</button>
@@ -306,12 +306,9 @@
   </footer>
 
   <script>
-  // ─── Feed configuration ────────────────────────────────────────────────────
-  const FEEDS = [
-    { label: 'Top Stories', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories',                                                   source: 'Yahoo Finance' },
-  ];
-
-  const RSS2JSON   = 'https://api.rss2json.com/v1/api.json?rss_url=';
+  // ─── Configuration ────────────────────────────────────────────────────────
+  // Update to your deployed backend URL when going live
+  const API_BASE   = 'https://sahidkhan89.pythonanywhere.com';
   const ALLORIGINS = 'https://api.allorigins.win/get?url=';
 
   // ─── State ────────────────────────────────────────────────────────────────
@@ -319,7 +316,7 @@
   let currentIdx = null;
 
   // ─── Boot ─────────────────────────────────────────────────────────────────
-  loadFeed(0);
+  loadNews();
 
   // ─── Nav ──────────────────────────────────────────────────────────────────
   document.getElementById('menuBtn').addEventListener('click', () => {
@@ -329,96 +326,37 @@
     if (!e.target.closest('nav')) document.getElementById('navLinks').classList.remove('active');
   });
 
-  // ─── RSS fetch ────────────────────────────────────────────────────────────
-  async function loadFeed(idx) {
+  // ─── Loader ───────────────────────────────────────────────────────────────
+  async function loadNews() {
     showLoading();
-    const feedUrl = FEEDS[idx].url;
-
     try {
-      // Try allorigins XML first — preserves per-item <source> tags (e.g. "MT Newswires")
-      let items = await fetchViaAllOrigins(feedUrl);
+      const resp = await fetchWithTimeout(`${API_BASE}/market-news`, 12000);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const { news } = await resp.json();
 
-      // Fallback: rss2json if allorigins fails (loses per-item source but still gets articles)
-      if (!items) items = await fetchViaRss2Json(feedUrl);
-
-      if (!items || items.length === 0) {
-        showState('No stories found right now. Try another category or check back soon.');
+      if (!news || news.length === 0) {
+        showState('No stories found right now. Try again shortly.');
         return;
       }
 
-      const feedSource = FEEDS[idx].source; // fallback publisher name for this feed
-      articles = dedupe(items, 'link').slice(0, 24).map(a => ({
-        ...a,
-        source: a.source || feedSource, // per-article source wins (e.g. "MT Newswires"), fallback to feed name
-      }));
+      articles = news
+        .filter(a => a.title && a.link)
+        .map(a => ({
+          title:   cleanText(a.title),
+          link:    a.link,
+          pubDate: a.provider_publish_time
+                     ? new Date(a.provider_publish_time).toISOString()
+                     : '',
+          image:   a.thumbnail || '',
+          summary: a.summary   || '',
+          source:  a.publisher || 'Yahoo Finance',
+        }));
+
       renderGrid(articles);
     } catch (err) {
       showState('Could not load news right now. Please try again shortly.');
       console.error(err);
     }
-  }
-
-  async function fetchViaRss2Json(feedUrl) {
-    try {
-      const resp = await fetchWithTimeout(RSS2JSON + encodeURIComponent(feedUrl), 7000);
-      if (!resp.ok) return null;
-      const data = await resp.json();
-      if (data.status !== 'ok' || !data.items?.length) return null;
-
-      return data.items.map(item => ({
-        title:   cleanText(item.title),
-        link:    item.link,
-        pubDate: item.pubDate,
-        image:   item.thumbnail || item.enclosure?.link || '',
-        summary: stripHtml(item.description),
-        source:  cleanFeedTitle(data.feed?.title, feedUrl),
-      }));
-    } catch { return null; }
-  }
-
-  async function fetchViaAllOrigins(feedUrl) {
-    try {
-      const resp = await fetchWithTimeout(ALLORIGINS + encodeURIComponent(feedUrl), 10000);
-      if (!resp.ok) return null;
-      const { contents } = await resp.json();
-      // allorigins sometimes returns content as a base64 data URI
-      let xmlStr = contents;
-      if (typeof contents === 'string' && contents.includes(';base64,')) {
-        xmlStr = atob(contents.split(';base64,')[1]);
-      }
-      return parseRssXml(xmlStr, feedUrl);
-    } catch { return null; }
-  }
-
-  function parseRssXml(xmlStr, feedUrl) {
-    const doc = new DOMParser().parseFromString(xmlStr, 'text/xml');
-    const ns = { media: 'http://search.yahoo.com/mrss/' };
-    const feedTitle = cleanFeedTitle(doc.querySelector('channel > title, feed > title')?.textContent?.trim(), feedUrl);
-
-    return [...doc.querySelectorAll('item, entry')].map(node => {
-      const get = tag => node.querySelector(tag)?.textContent?.trim() || '';
-      const attr = (tag, a) => node.querySelector(tag)?.getAttribute(a) || '';
-
-      // Image: try several locations in order of reliability
-      const image =
-        attr('media\\:content, content', 'url') ||
-        attr('media\\:thumbnail, thumbnail', 'url') ||
-        attr('enclosure', 'url') ||
-        extractFirstImg(get('description')) ||
-        extractFirstImg(get('encoded')) ||
-        '';
-
-      const link = get('link') || node.querySelector('link')?.getAttribute('href') || '';
-
-      return {
-        title:   cleanText(get('title')),
-        link,
-        pubDate: get('pubDate') || get('published') || get('updated'),
-        image:   image.startsWith('//') ? 'https:' + image : image,
-        summary: stripHtml(get('description') || get('summary')),
-        source:  cleanText(get('source')) || feedTitle, // per-item source tag (e.g. "MT Newswires")
-      };
-    }).filter(a => a.title && a.link);
   }
 
   // ─── Render grid ──────────────────────────────────────────────────────────
@@ -431,8 +369,8 @@
       card.className = 'news-card';
 
       const thumbHtml = article.image
-        ? `<img src="${esc(article.image)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML=imgPlaceholder()" />`
-        : imgPlaceholder();
+        ? `<img src="${esc(article.image)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.outerHTML=imgPlaceholder(${i})" />`
+        : imgPlaceholder(i);
 
       card.innerHTML = `
         <div class="card-image-wrap">${thumbHtml}</div>
@@ -452,12 +390,44 @@
     });
   }
 
-  function imgPlaceholder() {
-    return `<div class="card-image-placeholder">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
-    </div>`;
+  function imgPlaceholder(idx) {
+    // Render the same generative art used on the canvas, scaled to card size
+    const W = 680, H = 384; // 2× for retina sharpness
+    const oc = document.createElement('canvas');
+    oc.width = W; oc.height = H;
+    const octx = oc.getContext('2d');
+
+    // Dark background + dot grid
+    const bg = octx.createLinearGradient(0, 0, W * 0.5, H);
+    bg.addColorStop(0, '#060d1c'); bg.addColorStop(1, '#04080f');
+    octx.fillStyle = bg; octx.fillRect(0, 0, W, H);
+    octx.fillStyle = 'rgba(255,255,255,0.02)';
+    const sp = 26;
+    for (let x = sp; x < W; x += sp)
+      for (let y = sp; y < H; y += sp) {
+        octx.beginPath(); octx.arc(x, y, 0.75, 0, Math.PI * 2); octx.fill();
+      }
+
+    // Grid lines
+    octx.strokeStyle = 'rgba(20,184,166,0.07)'; octx.lineWidth = 1;
+    const gs = 36;
+    for (let x = 0; x < W; x += gs) { octx.beginPath(); octx.moveTo(x, 0); octx.lineTo(x, H); octx.stroke(); }
+    for (let y = 0; y < H; y += gs) { octx.beginPath(); octx.moveTo(0, y); octx.lineTo(W, y); octx.stroke(); }
+
+    // Pick variant by index (cycles through all 5)
+    const variant = (idx || 0) % 5;
+    if      (variant === 0) drawLineChartPattern(octx, 0, 0, W, H);
+    else if (variant === 1) drawBarPattern(octx, 0, 0, W, H);
+    else if (variant === 2) drawNetworkPattern(octx, 0, 0, W, H);
+    else if (variant === 3) drawCandlestickPattern(octx, 0, 0, W, H);
+    else                    drawHeatmapPattern(octx, 0, 0, W, H);
+
+    // Bottom fade
+    const fade = octx.createLinearGradient(0, H * 0.55, 0, H);
+    fade.addColorStop(0, 'transparent'); fade.addColorStop(1, '#060d1c');
+    octx.fillStyle = fade; octx.fillRect(0, 0, W, H);
+
+    return `<img src="${oc.toDataURL()}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
   }
 
   // ─── Share modal ──────────────────────────────────────────────────────────
@@ -469,22 +439,21 @@
     document.body.style.overflow = 'hidden';
 
     buildCaption(article);
-    drawCard(article); // draw immediately — no waiting
+    drawCard(article);
 
-    // Fetch richer og:image + og:description in background, then update
+    // Finnhub images are often logos — fetch the real og:image + og:description
+    // from the article page in the background and update the canvas once ready.
     if (article.link && !article._ogFetched) {
       article._ogFetched = true;
       fetchOgMeta(article.link).then(meta => {
-        if (currentIdx !== idx) return; // user has moved on
+        if (currentIdx !== idx) return;
         let redraw = false;
-        if (meta.image && meta.image !== article.image) {
-          article.image = meta.image; // higher-res og:image replaces small RSS thumbnail
-          redraw = true;
+        if (meta.image) { article.image = meta.image; redraw = true; }
+        // Only replace summary if og:description is meaningfully longer than what we already have
+        if (meta.description && meta.description.length > (article.summary || '').length + 30) {
+          article.summary = meta.description;
         }
-        if (meta.description) {
-          article.summary = meta.description; // richer description for caption
-          buildCaption(article);
-        }
+        buildCaption(article);
         if (redraw) drawCard(article);
       });
     }
@@ -560,7 +529,7 @@
       }
     }
 
-    // Company $TICKER tags (max 2) — case-sensitive scan of original text
+    // Company $TICKER tags — case-sensitive scan of original text
     const companyTags = [];
     for (const [name, ticker] of COMPANIES) {
       if (fullText.includes(name)) {
@@ -570,15 +539,17 @@
       }
     }
 
-    return ['#StockScore', ...topicTags, ...companyTags].join(' ');
+    // Combine and cap at 3 total
+    return [...topicTags, ...companyTags].slice(0, 3).join(' ');
   }
 
   // ─── Caption builder ──────────────────────────────────────────────────────
   function buildCaption(article) {
-    const summary = (article.summary || '').slice(0, 280);
+    // Prefer the first real paragraph from the article page; fall back to RSS summary
+    const body = (article.firstParagraph || article.summary || '').slice(0, 280);
     const lines = [
       article.title || '',
-      ...(summary ? ['', summary] : []),
+      ...(body ? ['', body] : []),
       '',
       generateHashtags(article),
     ];
@@ -726,13 +697,19 @@
     for (let gy = 0; gy < h; gy += gs) { ctx.beginPath(); ctx.moveTo(x0, y0 + gy); ctx.lineTo(x0 + w, y0 + gy); ctx.stroke(); }
 
     // Pick chart variant by topic
-    const isCrypto   = /bitcoin|crypto|ethereum|blockchain|defi/.test(text);
-    const isEarnings = /earn|revenue|profit|eps|quarterly/.test(text);
+    const isCrypto    = /bitcoin|crypto|ethereum|blockchain|defi/.test(text);
+    const isEarnings  = /earn|revenue|profit|eps|quarterly/.test(text);
+    const isCandlestk = /ipo|merger|acquisition|takeover|buyout|valuation/.test(text);
+    const isHeatmap   = /sector|heatmap|market map|s&p 500|portfolio|diversif/.test(text);
 
     if (isCrypto) {
       drawNetworkPattern(ctx, x0, y0, w, h);
     } else if (isEarnings) {
       drawBarPattern(ctx, x0, y0, w, h);
+    } else if (isCandlestk) {
+      drawCandlestickPattern(ctx, x0, y0, w, h);
+    } else if (isHeatmap) {
+      drawHeatmapPattern(ctx, x0, y0, w, h);
     } else {
       drawLineChartPattern(ctx, x0, y0, w, h);
     }
@@ -846,6 +823,48 @@
     });
   }
 
+  // Variant D: candlestick chart (M&A / IPO / valuation stories)
+  function drawCandlestickPattern(ctx, x0, y0, w, h) {
+    const candles = 20, cw = w / candles;
+    const midY = y0 + h * 0.5;
+    for (let i = 0; i < candles; i++) {
+      const open  = midY + (Math.sin(i * 0.9) * 0.3 + Math.cos(i * 0.4) * 0.15) * h * 0.35;
+      const close = midY + (Math.sin(i * 0.9 + 1.2) * 0.3 + Math.cos(i * 0.5) * 0.15) * h * 0.35;
+      const high  = Math.min(open, close) - Math.abs(Math.sin(i * 1.7)) * h * 0.07;
+      const low   = Math.max(open, close) + Math.abs(Math.cos(i * 1.3)) * h * 0.07;
+      const up    = close < open;
+      const col   = up ? 'rgba(20,184,166,0.85)' : 'rgba(244,63,94,0.75)';
+      const cx    = x0 + i * cw + cw / 2;
+      // Wick
+      ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx, high); ctx.lineTo(cx, low); ctx.stroke();
+      // Body
+      ctx.fillStyle = col;
+      ctx.fillRect(cx - cw * 0.28, Math.min(open, close), cw * 0.56, Math.abs(open - close) || 2);
+    }
+  }
+
+  // Variant E: sector heatmap grid
+  function drawHeatmapPattern(ctx, x0, y0, w, h) {
+    const cols = 6, rows = 4;
+    const cw = w / cols, ch = (h * 0.75) / rows;
+    const startY = y0 + h * 0.1;
+    const palette = [
+      'rgba(20,184,166,0.7)', 'rgba(20,184,166,0.45)', 'rgba(20,184,166,0.25)',
+      'rgba(244,63,94,0.25)', 'rgba(244,63,94,0.45)', 'rgba(244,63,94,0.7)',
+    ];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = Math.floor(Math.abs(Math.sin(r * cols + c + 1.3) * palette.length));
+        ctx.fillStyle = palette[idx];
+        ctx.fillRect(x0 + c * cw + 2, startY + r * ch + 2, cw - 4, ch - 4);
+        // Subtle border
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+        ctx.strokeRect(x0 + c * cw + 2, startY + r * ch + 2, cw - 4, ch - 4);
+      }
+    }
+  }
+
   // Matches the Flutter share page header style:
   // Left-to-right gradient (#00786E → #00D2BE), text on left, logo directly on gradient on right
   function drawHeaderGradient(ctx, hh) {
@@ -930,12 +949,22 @@
     ctx.save(); ctx.textBaseline = 'middle';
     const mid = fy + (CH - fy) / 2;
 
-    // Left — timestamp
+    // Left — "Source:" label + source name + timestamp
+    ctx.textAlign = 'left';
+    if (article.source) {
+      const labelFont = '400 22px Inter, Arial, sans-serif';
+      const sourceFont = 'bold 22px Inter, Arial, sans-serif';
+      ctx.font = labelFont;
+      const labelW = ctx.measureText('Source: ').width;
+      ctx.fillStyle = C.white;
+      ctx.fillText('Source: ', 72, mid - 16);
+      ctx.font = sourceFont; ctx.fillStyle = C.teal;
+      ctx.fillText(article.source, 72 + labelW, mid - 16);
+    }
     const timeStr = absTime(article.pubDate);
     if (timeStr) {
-      ctx.textAlign = 'left';
-      ctx.font = '500 20px Inter, Arial, sans-serif'; ctx.fillStyle = C.gray;
-      ctx.fillText(timeStr, 72, mid);
+      ctx.font = '400 18px Inter, Arial, sans-serif'; ctx.fillStyle = C.gray;
+      ctx.fillText(timeStr, 72, mid + 16);
     }
 
     // Right — brand
@@ -1085,20 +1114,11 @@
     return `${day} ${month}, ${hh}:${mm}`;
   }
 
-  function stripHtml(html) {
-    return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').trim();
-  }
-
   function cleanText(s) {
     return (s || '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&#039;/g,"'").replace(/&quot;/g,'"').trim();
   }
 
-  function extractFirstImg(html) {
-    const m = (html || '').match(/<img[^>]+src=["']([^"']+)["']/i);
-    return m ? m[1] : '';
-  }
-
-  // Scrape og:image from an article URL via allorigins proxy
+  // Fetch real og:image + og:description from an article page via allorigins
   async function fetchOgMeta(articleUrl) {
     try {
       const resp = await fetchWithTimeout(ALLORIGINS + encodeURIComponent(articleUrl), 9000);
@@ -1117,32 +1137,6 @@
         description: pick('og:description') || pick('description'),
       };
     } catch { return {}; }
-  }
-
-  // Map known hostnames to clean brand names
-  const SOURCE_NAMES = {
-    'search.cnbc.com': 'CNBC', 'cnbc.com': 'CNBC',
-    'uk.investing.com': 'Investing.com', 'investing.com': 'Investing.com',
-    'feeds.reuters.com': 'Reuters', 'reuters.com': 'Reuters',
-    'bloomberg.com': 'Bloomberg', 'ft.com': 'Financial Times',
-    'marketwatch.com': 'MarketWatch', 'wsj.com': 'Wall Street Journal',
-    'finance.yahoo.com': 'Yahoo Finance', 'feeds.finance.yahoo.com': 'Yahoo Finance',
-    'stocktitan.net': 'StockTitan', 'www.stocktitan.net': 'StockTitan',
-  };
-
-  function sourceName(url) {
-    try {
-      const host = new URL(url).hostname.replace(/^(www\.|feeds\.|rss\.)/, '');
-      return SOURCE_NAMES[host] || SOURCE_NAMES[new URL(url).hostname] || host;
-    } catch { return 'News'; }
-  }
-
-  // Strip site suffixes from rss2json feed titles (e.g. "CNBC | Latest News" → "CNBC")
-  function cleanFeedTitle(title, feedUrl) {
-    if (!title) return sourceName(feedUrl);
-    // Take the part before common separators like |, -, –
-    const clean = title.split(/\s*[|\-–]\s*/)[0].trim();
-    return clean || sourceName(feedUrl);
   }
 
   function dedupe(arr, key) {
