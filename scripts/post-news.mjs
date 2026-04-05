@@ -98,37 +98,15 @@ function buildCaption(article, maxChars) {
 
 // ─── Card image URL ───────────────────────────────────────────────────────────
 
-async function cardImageUrl(article) {
-  const params = {
+function cardImageUrl(article) {
+  const p = new URLSearchParams({
     title:     article.title     || '',
     publisher: article.publisher || '',
+    thumbnail: article.thumbnail || '',
     pubDate:   article.provider_publish_time
       ? new Date(article.provider_publish_time * 1000).toISOString()
       : '',
-  };
-
-  // Download thumbnail here (GitHub Actions has unrestricted outbound access)
-  // and pass as base64 so PythonAnywhere doesn't need to fetch it
-  if (article.thumbnail) {
-    try {
-      const resp = await fetch(article.thumbnail, {
-        signal: AbortSignal.timeout(10000),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
-          'Referer': 'https://finance.yahoo.com/',
-        },
-      });
-      if (resp.ok) {
-        const buf = Buffer.from(await resp.arrayBuffer());
-        params.thumbnailB64 = buf.toString('base64');
-      }
-    } catch {
-      // fall through — backend will use generative background
-    }
-  }
-
-  const p = new URLSearchParams(params);
+  });
   return `${CARD_BACKEND_URL}/market-news/card-image?${p.toString()}`;
 }
 
