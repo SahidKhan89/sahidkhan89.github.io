@@ -3,7 +3,8 @@ import { TwitterApi } from 'twitter-api-v2';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const BACKEND_URL = process.env.BACKEND_URL || 'https://sahidkhan89.pythonanywhere.com';
+const BACKEND_URL      = process.env.BACKEND_URL      || 'https://sahidkhan89.pythonanywhere.com';
+const CARD_BACKEND_URL = process.env.CARD_BACKEND_URL || 'https://disturbed-melly-skhan89-05036d6c.koyeb.app';
 const TRACKING    = new URL('../data/posted_articles.json', import.meta.url).pathname;
 const MAX_HISTORY = 500;
 
@@ -97,16 +98,38 @@ function buildCaption(article, maxChars) {
 
 // ─── Card image URL ───────────────────────────────────────────────────────────
 
-function cardImageUrl(article) {
-  const p = new URLSearchParams({
+async function cardImageUrl(article) {
+  const params = {
     title:     article.title     || '',
     publisher: article.publisher || '',
-    thumbnail: article.thumbnail || '',
     pubDate:   article.provider_publish_time
       ? new Date(article.provider_publish_time * 1000).toISOString()
       : '',
-  });
-  return `${BACKEND_URL}/market-news/card-image?${p.toString()}`;
+  };
+
+  // Download thumbnail here (GitHub Actions has unrestricted outbound access)
+  // and pass as base64 so PythonAnywhere doesn't need to fetch it
+  if (article.thumbnail) {
+    try {
+      const resp = await fetch(article.thumbnail, {
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+          'Referer': 'https://finance.yahoo.com/',
+        },
+      });
+      if (resp.ok) {
+        const buf = Buffer.from(await resp.arrayBuffer());
+        params.thumbnailB64 = buf.toString('base64');
+      }
+    } catch {
+      // fall through — backend will use generative background
+    }
+  }
+
+  const p = new URLSearchParams(params);
+  return `${CARD_BACKEND_URL}/market-news/card-image?${p.toString()}`;
 }
 
 // ─── X (Twitter) ─────────────────────────────────────────────────────────────
@@ -229,7 +252,7 @@ async function main() {
   const xText      = buildCaption(article, 280);
   const threadsText = buildCaption(article, 500);
   const igText      = buildCaption(article, 2200);
-  const imageUrl    = cardImageUrl(article);
+  const imageUrl    = await cardImageUrl(article);
 
   console.log('\n--- X caption ---');
   console.log(xText);
