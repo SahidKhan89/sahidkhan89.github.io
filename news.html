@@ -546,7 +546,7 @@
   // ─── Caption builder ──────────────────────────────────────────────────────
   function buildCaption(article) {
     // Prefer the first real paragraph from the article page; fall back to RSS summary
-    const body = (article.firstParagraph || article.summary || '').slice(0, 280);
+    const body = (article.firstParagraph || article.summary || '').slice(0, 360);
     const lines = [
       article.title || '',
       ...(body ? ['', body] : []),

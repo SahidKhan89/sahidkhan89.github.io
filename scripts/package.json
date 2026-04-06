@@ -1,7 +1,4 @@
 {
   "name": "stock-score-social",
-  "type": "module",
-  "dependencies": {
-    "twitter-api-v2": "^1.17.0"
-  }
+  "type": "module"
 }

@@ -1,5 +1,4 @@
 import { readFileSync, writeFileSync } from 'fs';
-import { TwitterApi } from 'twitter-api-v2';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -104,85 +103,13 @@ function cardImageUrl(article) {
     publisher: article.publisher || '',
     thumbnail: article.thumbnail || '',
     pubDate:   article.provider_publish_time
-      ? new Date(article.provider_publish_time * 1000).toISOString()
+      ? new Date(article.provider_publish_time).toISOString()
       : '',
   });
   return `${CARD_BACKEND_URL}/market-news/card-image?${p.toString()}`;
 }
 
 // ─── X (Twitter) ─────────────────────────────────────────────────────────────
-
-async function postToX(text, imageUrl) {
-  const client = new TwitterApi({
-    appKey:       process.env.X_API_KEY,
-    appSecret:    process.env.X_API_SECRET,
-    accessToken:  process.env.X_ACCESS_TOKEN,
-    accessSecret: process.env.X_ACCESS_TOKEN_SECRET,
-  });
-
-  const trimmed = text.length > 275 ? text.slice(0, 272) + '…' : text;
-  console.log(`  [X] tweet length: ${trimmed.length} chars`);
-
-  // Verify credentials
-  try {
-    const me = await client.v2.me();
-    console.log(`  [X] authenticated as @${me.data.username} (id: ${me.data.id})`);
-  } catch (authErr) {
-    console.error(`  [X] credential check failed: ${authErr?.message}`);
-    if (authErr?.data) console.error(`  [X] auth error body:`, JSON.stringify(authErr.data));
-    throw authErr;
-  }
-
-  // Attempt media upload (v1.1 — requires Basic tier or above on free plan this may 403/503)
-  if (imageUrl) {
-    let mediaId = null;
-    try {
-      console.log(`  [X] downloading card image: ${imageUrl}`);
-      const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
-      console.log(`  [X] image download status: ${imgResp.status}`);
-      if (!imgResp.ok) throw new Error(`Image download failed: ${imgResp.status}`);
-      const imgBuffer = Buffer.from(await imgResp.arrayBuffer());
-      console.log(`  [X] image size: ${imgBuffer.length} bytes`);
-
-      console.log(`  [X] uploading media via v1.1 endpoint…`);
-      mediaId = await client.v1.uploadMedia(imgBuffer, { mimeType: 'image/jpeg' });
-      console.log(`  [X] media uploaded, id: ${mediaId}`);
-    } catch (mediaErr) {
-      const code = mediaErr?.code || mediaErr?.status || '?';
-      console.warn(`  [X] media upload failed (${code}): ${mediaErr?.message}`);
-      if (mediaErr?.data)  console.warn(`  [X] media error body:`, JSON.stringify(mediaErr.data));
-      if (mediaErr?.errors) console.warn(`  [X] media errors:`, JSON.stringify(mediaErr.errors));
-      console.warn(`  [X] NOTE: v1.1 media upload requires Basic tier ($100/mo). Falling back to text-only tweet.`);
-    }
-
-    if (mediaId) {
-      console.log(`  [X] posting tweet with media…`);
-      try {
-        const { data } = await client.v2.tweet({ text: trimmed, media: { media_ids: [mediaId] } });
-        return data.id;
-      } catch (tweetErr) {
-        const code = tweetErr?.code || tweetErr?.status || '?';
-        console.error(`  [X] tweet-with-media failed (${code}): ${tweetErr?.message}`);
-        if (tweetErr?.data)   console.error(`  [X] tweet error body:`, JSON.stringify(tweetErr.data));
-        if (tweetErr?.errors) console.error(`  [X] tweet errors:`, JSON.stringify(tweetErr.errors));
-        throw tweetErr;
-      }
-    }
-  }
-
-  // Text-only fallback (or no imageUrl)
-  console.log(`  [X] posting text-only tweet…`);
-  try {
-    const { data } = await client.v2.tweet({ text: trimmed });
-    return data.id;
-  } catch (tweetErr) {
-    const code = tweetErr?.code || tweetErr?.status || '?';
-    console.error(`  [X] text tweet failed (${code}): ${tweetErr?.message}`);
-    if (tweetErr?.data)   console.error(`  [X] tweet error body:`, JSON.stringify(tweetErr.data));
-    if (tweetErr?.errors) console.error(`  [X] tweet errors:`, JSON.stringify(tweetErr.errors));
-    throw tweetErr;
-  }
-}
 
 // ─── Threads ──────────────────────────────────────────────────────────────────
 
@@ -275,21 +202,14 @@ async function main() {
   console.log(`\nPosting: ${article.title}`);
   console.log(`Source:  ${article.publisher}`);
 
-  const xText      = buildCaption(article, 280);
   const threadsText = buildCaption(article, 500);
   const igText      = buildCaption(article, 2200);
   const imageUrl    = cardImageUrl(article);
 
-  console.log('\n--- X caption ---');
-  console.log(xText);
   console.log('\n--- Threads caption ---');
   console.log(threadsText);
 
   const results = await Promise.allSettled([
-    process.env.X_API_KEY
-      ? postToX(xText, imageUrl)
-      : Promise.resolve('skipped — no credentials'),
-
     process.env.THREADS_ACCESS_TOKEN
       ? postToThreads(threadsText, imageUrl)
       : Promise.resolve('skipped — no credentials'),
@@ -299,7 +219,7 @@ async function main() {
       : Promise.resolve('skipped — no credentials'),
   ]);
 
-  const platforms = ['X', 'Threads', 'Instagram'];
+  const platforms = ['Threads', 'Instagram'];
   let anySuccess = false;
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') {
