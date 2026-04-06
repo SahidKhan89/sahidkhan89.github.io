@@ -1,5 +1,19 @@
 import { readFileSync, writeFileSync } from 'fs';
 
+// ─── Retry helper ────────────────────────────────────────────────────────────
+
+async function withRetry(label, fn, attempts = 3, delayMs = 4000) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === attempts) throw err;
+      console.warn(`  [${label}] attempt ${i} failed: ${err.message} — retrying in ${delayMs / 1000}s…`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+}
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const BACKEND_URL      = process.env.BACKEND_URL      || 'https://sahidkhan89.pythonanywhere.com';
@@ -211,11 +225,11 @@ async function main() {
 
   const results = await Promise.allSettled([
     process.env.THREADS_ACCESS_TOKEN
-      ? postToThreads(threadsText, imageUrl)
+      ? withRetry('Threads', () => postToThreads(threadsText, imageUrl))
       : Promise.resolve('skipped — no credentials'),
 
     (process.env.IG_ACCESS_TOKEN && process.env.IG_USER_ID)
-      ? postToInstagram(igText, imageUrl)
+      ? withRetry('Instagram', () => postToInstagram(igText, imageUrl))
       : Promise.resolve('skipped — no credentials'),
   ]);
 
