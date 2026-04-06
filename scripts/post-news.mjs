@@ -123,6 +123,16 @@ function cardImageUrl(article) {
   return `${CARD_BACKEND_URL}/market-news/card-image?${p.toString()}`;
 }
 
+async function warmCardImage(imageUrl) {
+  try {
+    console.log('  [card] warming image URL…');
+    const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(25000) });
+    console.log(`  [card] warm-up status: ${resp.status} (${resp.headers.get('content-length') ?? '?'} bytes)`);
+  } catch (err) {
+    console.warn(`  [card] warm-up failed: ${err.message} — continuing anyway`);
+  }
+}
+
 // ─── X (Twitter) ─────────────────────────────────────────────────────────────
 
 // ─── Threads ──────────────────────────────────────────────────────────────────
@@ -222,6 +232,8 @@ async function main() {
 
   console.log('\n--- Threads caption ---');
   console.log(threadsText);
+
+  await warmCardImage(imageUrl);
 
   const results = await Promise.allSettled([
     process.env.THREADS_ACCESS_TOKEN
