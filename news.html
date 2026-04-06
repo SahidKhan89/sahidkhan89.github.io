@@ -560,19 +560,19 @@
   //
   // Layout zones (all pixel values, canvas coords):
   //   0   – 168  : teal header bar
-  //   168 – 616  : article image OR branded placeholder (448px)
-  //   616 – 680  : breathing room
-  //   680 – 960  : headline   (up to 3 lines × 93px)
-  //   960 – 998  : teal separator
-  //   998 – 1180 : summary    (up to 3 lines × 60px)
-  //   1180– 1350 : footer
+  //   168 – 676  : article image OR branded placeholder (508px)
+  //   676 – 740  : breathing room
+  //   740 – 1020 : headline   (up to 3 lines × 93px)
+  //   1020– 1058 : teal separator
+  //   1058– 1240 : summary    (up to 3 lines × 60px)
+  //   1240– 1350 : footer
   //
   const CW = 1080, CH = 1350;
-  const IMG_Y = 168, IMG_H = 448;
-  const HL_Y  = 680;
-  const SEP_Y = 960;
-  const SUM_Y = 1005;
-  const FT_Y  = 1180;
+  const IMG_Y = 168, IMG_H = 508;
+  const HL_Y  = 740;
+  const SEP_Y = 1020;
+  const SUM_Y = 1065;
+  const FT_Y  = 1240;
 
   const C = {
     bgFrom: '#060d1c', bgTo: '#04080f',
@@ -657,9 +657,9 @@
   }
 
   function drawImageCover(ctx, img, x, y, w, h) {
-    const scale = Math.max(w / img.width, h / img.height);
+    const scale = Math.min(w / img.width, h / img.height);
     const sw = img.width * scale, sh = img.height * scale;
-    const sx = x + (w - sw) / 2, sy = y + (h - sh) / 2;
+    const sx = x + (w - sw) / 2, sy = y;
     ctx.save();
     ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
     ctx.drawImage(img, sx, sy, sw, sh);
@@ -1108,10 +1108,12 @@
     if (isNaN(ms)) return '';
     const d = new Date(ms);
     const day   = d.getDate();
-    const month = d.toLocaleString('en-GB', { month: 'short' });
-    const hh    = String(d.getHours()).padStart(2, '0');
-    const mm    = String(d.getMinutes()).padStart(2, '0');
-    return `${day} ${month}, ${hh}:${mm}`;
+    const suffix = day === 1 || day === 21 || day === 31 ? 'st'
+                 : day === 2 || day === 22             ? 'nd'
+                 : day === 3 || day === 23             ? 'rd' : 'th';
+    const month = d.toLocaleString('en-GB', { month: 'long' });
+    const year  = d.getFullYear();
+    return `${day}${suffix} ${month} ${year}`;
   }
 
   function cleanText(s) {
