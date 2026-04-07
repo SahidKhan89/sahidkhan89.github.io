@@ -369,8 +369,8 @@
       card.className = 'news-card';
 
       const thumbHtml = article.image
-        ? `<img src="${esc(article.image)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.outerHTML=imgPlaceholder(${i})" />`
-        : imgPlaceholder(i);
+        ? `<img src="${esc(article.image)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.outerHTML=imgPlaceholder(articles[${i}])" />`
+        : imgPlaceholder(article);
 
       card.innerHTML = `
         <div class="card-image-wrap">${thumbHtml}</div>
@@ -390,7 +390,16 @@
     });
   }
 
-  function imgPlaceholder(idx) {
+  function pickGenerativeVariant(article) {
+    const text = ((article.title || '') + ' ' + (article.summary || '')).toLowerCase();
+    if (/bitcoin|crypto|ethereum|blockchain|defi/.test(text))              return 'network';
+    if (/earn|revenue|profit|eps|quarterly/.test(text))                    return 'bar';
+    if (/ipo|merger|acquisition|takeover|buyout|valuation/.test(text))     return 'candlestick';
+    if (/sector|heatmap|market map|s&p 500|portfolio|diversif/.test(text)) return 'heatmap';
+    return 'line';
+  }
+
+  function imgPlaceholder(article) {
     // Render the same generative art used on the canvas, scaled to card size
     const W = 680, H = 384; // 2× for retina sharpness
     const oc = document.createElement('canvas');
@@ -414,13 +423,13 @@
     for (let x = 0; x < W; x += gs) { octx.beginPath(); octx.moveTo(x, 0); octx.lineTo(x, H); octx.stroke(); }
     for (let y = 0; y < H; y += gs) { octx.beginPath(); octx.moveTo(0, y); octx.lineTo(W, y); octx.stroke(); }
 
-    // Pick variant by index (cycles through all 5)
-    const variant = (idx || 0) % 5;
-    if      (variant === 0) drawLineChartPattern(octx, 0, 0, W, H);
-    else if (variant === 1) drawBarPattern(octx, 0, 0, W, H);
-    else if (variant === 2) drawNetworkPattern(octx, 0, 0, W, H);
-    else if (variant === 3) drawCandlestickPattern(octx, 0, 0, W, H);
-    else                    drawHeatmapPattern(octx, 0, 0, W, H);
+    // Pick variant by article topic (same logic as canvas)
+    const variant = pickGenerativeVariant(article);
+    if      (variant === 'network')     drawNetworkPattern(octx, 0, 0, W, H);
+    else if (variant === 'bar')         drawBarPattern(octx, 0, 0, W, H);
+    else if (variant === 'candlestick') drawCandlestickPattern(octx, 0, 0, W, H);
+    else if (variant === 'heatmap')     drawHeatmapPattern(octx, 0, 0, W, H);
+    else                                drawLineChartPattern(octx, 0, 0, W, H);
 
     // Bottom fade
     const fade = octx.createLinearGradient(0, H * 0.55, 0, H);
@@ -682,7 +691,6 @@
   // Variant chosen by article topic keywords.
   function drawGenerativeBackground(ctx, article) {
     const x0 = 0, y0 = IMG_Y, w = CW, h = IMG_H;
-    const text = ((article.title || '') + ' ' + (article.summary || '')).toLowerCase();
 
     // Base fill — slightly different shade from card background for depth
     const base = ctx.createLinearGradient(0, y0, w, y0 + h);
@@ -696,23 +704,13 @@
     for (let gx = 0; gx < w; gx += gs) { ctx.beginPath(); ctx.moveTo(x0 + gx, y0); ctx.lineTo(x0 + gx, y0 + h); ctx.stroke(); }
     for (let gy = 0; gy < h; gy += gs) { ctx.beginPath(); ctx.moveTo(x0, y0 + gy); ctx.lineTo(x0 + w, y0 + gy); ctx.stroke(); }
 
-    // Pick chart variant by topic
-    const isCrypto    = /bitcoin|crypto|ethereum|blockchain|defi/.test(text);
-    const isEarnings  = /earn|revenue|profit|eps|quarterly/.test(text);
-    const isCandlestk = /ipo|merger|acquisition|takeover|buyout|valuation/.test(text);
-    const isHeatmap   = /sector|heatmap|market map|s&p 500|portfolio|diversif/.test(text);
-
-    if (isCrypto) {
-      drawNetworkPattern(ctx, x0, y0, w, h);
-    } else if (isEarnings) {
-      drawBarPattern(ctx, x0, y0, w, h);
-    } else if (isCandlestk) {
-      drawCandlestickPattern(ctx, x0, y0, w, h);
-    } else if (isHeatmap) {
-      drawHeatmapPattern(ctx, x0, y0, w, h);
-    } else {
-      drawLineChartPattern(ctx, x0, y0, w, h);
-    }
+    // Pick chart variant by topic (shared logic with grid thumbnails)
+    const variant = pickGenerativeVariant(article);
+    if      (variant === 'network')     drawNetworkPattern(ctx, x0, y0, w, h);
+    else if (variant === 'bar')         drawBarPattern(ctx, x0, y0, w, h);
+    else if (variant === 'candlestick') drawCandlestickPattern(ctx, x0, y0, w, h);
+    else if (variant === 'heatmap')     drawHeatmapPattern(ctx, x0, y0, w, h);
+    else                                drawLineChartPattern(ctx, x0, y0, w, h);
 
     // Bottom fade so the zone blends into the card
     const fade = ctx.createLinearGradient(0, y0 + h * 0.55, 0, y0 + h);
