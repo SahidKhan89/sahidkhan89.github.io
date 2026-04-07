@@ -127,9 +127,16 @@ async function warmCardImage(imageUrl) {
   try {
     console.log('  [card] warming image URL…');
     const resp = await fetch(imageUrl, { signal: AbortSignal.timeout(25000) });
-    console.log(`  [card] warm-up status: ${resp.status} (${resp.headers.get('content-length') ?? '?'} bytes)`);
+    const size = resp.headers.get('content-length') ?? '?';
+    console.log(`  [card] warm-up status: ${resp.status} (${size} bytes)`);
+    if (!resp.ok) {
+      console.warn(`  [card] backend unavailable (${resp.status}) — will post text-only`);
+      return false;
+    }
+    return true;
   } catch (err) {
-    console.warn(`  [card] warm-up failed: ${err.message} — continuing anyway`);
+    console.warn(`  [card] warm-up failed: ${err.message} — will post text-only`);
+    return false;
   }
 }
 
@@ -216,10 +223,36 @@ async function main() {
     return;
   }
 
-  // Pick the most recent article that hasn't been posted yet
-  const article = news.find(a => a.link && !posted.has(a.link));
-  if (!article) {
+  // Find the first unposted article whose card image is available, skip bad ones
+  const candidates = news.filter(a => a.link && !posted.has(a.link));
+  if (candidates.length === 0) {
     console.log('No new articles to post.');
+    return;
+  }
+
+  let article = null;
+  let activeImageUrl = null;
+
+  for (const candidate of candidates) {
+    const imageUrl = cardImageUrl(candidate);
+    console.log(`\nTrying: ${candidate.title}`);
+    const imageReady = await warmCardImage(imageUrl);
+    if (imageReady) {
+      article = candidate;
+      activeImageUrl = imageUrl;
+      break;
+    }
+    // Card image failed — mark as seen so we don't retry it next run
+    console.log(`  [skip] adding to posted list to avoid retrying.`);
+    posted.add(candidate.link);
+  }
+
+  if (!article) {
+    console.log('\nNo articles with a working card image found this run.');
+    // Save the skipped articles so they're not retried
+    tracking.posted = [...posted].slice(-MAX_HISTORY);
+    writeFileSync(TRACKING, JSON.stringify(tracking, null, 2) + '\n');
+    console.log('Tracking file updated (skipped articles recorded).');
     return;
   }
 
@@ -228,20 +261,17 @@ async function main() {
 
   const threadsText = buildCaption(article, 500);
   const igText      = buildCaption(article, 2200);
-  const imageUrl    = cardImageUrl(article);
 
   console.log('\n--- Threads caption ---');
   console.log(threadsText);
 
-  await warmCardImage(imageUrl);
-
   const results = await Promise.allSettled([
     process.env.THREADS_ACCESS_TOKEN
-      ? withRetry('Threads', () => postToThreads(threadsText, imageUrl))
+      ? withRetry('Threads', () => postToThreads(threadsText, activeImageUrl))
       : Promise.resolve('skipped — no credentials'),
 
     (process.env.IG_ACCESS_TOKEN && process.env.IG_USER_ID)
-      ? withRetry('Instagram', () => postToInstagram(igText, imageUrl))
+      ? withRetry('Instagram', () => postToInstagram(igText, activeImageUrl))
       : Promise.resolve('skipped — no credentials'),
   ]);
 
