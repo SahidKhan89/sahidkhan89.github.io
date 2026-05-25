@@ -176,6 +176,108 @@ async function postToThreads(text, imageUrl) {
   return pubData.id;
 }
 
+// ─── Reddit ───────────────────────────────────────────────────────────────────
+
+async function getRedditToken() {
+  const { REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD } = process.env;
+  const resp = await fetch('https://www.reddit.com/api/v1/access_token', {
+    method:  'POST',
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`).toString('base64'),
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent':   `nodejs:market-news-bot:v1.0 (by /u/${REDDIT_USERNAME})`,
+    },
+    body: new URLSearchParams({ grant_type: 'password', username: REDDIT_USERNAME, password: REDDIT_PASSWORD }),
+  });
+  const data = await resp.json();
+  if (!data.access_token) throw new Error(`Reddit auth failed: ${JSON.stringify(data)}`);
+  return data.access_token;
+}
+
+async function uploadImageToReddit(token, username, imageUrl) {
+  // Fetch the card image
+  const imgResp = await fetch(imageUrl, { signal: AbortSignal.timeout(25000) });
+  if (!imgResp.ok) throw new Error(`Failed to fetch card image: ${imgResp.status}`);
+  const imgBytes = Buffer.from(await imgResp.arrayBuffer());
+
+  // Get S3 upload lease from Reddit
+  const leaseResp = await fetch('https://oauth.reddit.com/api/media/asset.json', {
+    method:  'POST',
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent':   `nodejs:market-news-bot:v1.0 (by /u/${username})`,
+    },
+    body: new URLSearchParams({ filepath: 'card.jpg', mimetype: 'image/jpeg' }),
+  });
+  const lease = await leaseResp.json();
+  if (!lease.asset?.upload_lease) throw new Error(`Reddit media lease error: ${JSON.stringify(lease)}`);
+
+  const { action, fields } = lease.asset.upload_lease;
+  const uploadUrl = action.startsWith('//') ? `https:${action}` : action;
+
+  // Upload bytes to S3
+  const form = new FormData();
+  for (const { name, value } of fields) form.append(name, value);
+  form.append('file', new Blob([imgBytes], { type: 'image/jpeg' }), 'card.jpg');
+  const s3Resp = await fetch(uploadUrl, { method: 'POST', body: form });
+  if (s3Resp.status !== 201) throw new Error(`S3 upload failed: ${s3Resp.status}`);
+
+  return lease.asset.websocket_url;
+}
+
+async function postToReddit(article, caption, imageUrl) {
+  const { REDDIT_USERNAME, REDDIT_SUBREDDIT } = process.env;
+  const token = await getRedditToken();
+
+  // Upload card image to Reddit's hosting
+  const websocketUrl = await uploadImageToReddit(token, REDDIT_USERNAME, imageUrl);
+
+  // Submit as image post (title capped at Reddit's 300-char limit)
+  const submitResp = await fetch('https://oauth.reddit.com/api/submit', {
+    method:  'POST',
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent':   `nodejs:market-news-bot:v1.0 (by /u/${REDDIT_USERNAME})`,
+    },
+    body: new URLSearchParams({
+      sr:        REDDIT_SUBREDDIT,
+      kind:      'image',
+      title:     article.title.slice(0, 300),
+      url:       websocketUrl,
+      api_type:  'json',
+      resubmit:  'true',
+      ...(process.env.REDDIT_FLAIR_ID && { flair_id: process.env.REDDIT_FLAIR_ID }),
+    }),
+  });
+  const submitData = await submitResp.json();
+  const errors = submitData?.json?.errors;
+  if (errors?.length) throw new Error(`Reddit submit error: ${JSON.stringify(errors)}`);
+
+  const postName = submitData?.json?.data?.name; // e.g. "t3_abc123"
+
+  // Add caption + article link as the first comment (standard pattern for image posts)
+  if (postName) {
+    await new Promise(r => setTimeout(r, 3000));
+    await fetch('https://oauth.reddit.com/api/comment', {
+      method:  'POST',
+      headers: {
+        Authorization:  `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent':   `nodejs:market-news-bot:v1.0 (by /u/${REDDIT_USERNAME})`,
+      },
+      body: new URLSearchParams({
+        thing_id: postName,
+        text:     `${caption}\n\n${article.link}`,
+        api_type: 'json',
+      }),
+    });
+  }
+
+  return submitData?.json?.data?.url ?? 'posted';
+}
+
 // ─── Instagram ────────────────────────────────────────────────────────────────
 
 async function postToInstagram(caption, imageUrl) {
@@ -261,6 +363,7 @@ async function main() {
 
   const threadsText = buildCaption(article, 500);
   const igText      = buildCaption(article, 2200);
+  const redditText  = buildCaption(article, 500);
 
   console.log('\n--- Threads caption ---');
   console.log(threadsText);
@@ -273,9 +376,13 @@ async function main() {
     (process.env.IG_ACCESS_TOKEN && process.env.IG_USER_ID)
       ? withRetry('Instagram', () => postToInstagram(igText, activeImageUrl))
       : Promise.resolve('skipped — no credentials'),
+
+    (process.env.REDDIT_CLIENT_ID && process.env.REDDIT_SUBREDDIT)
+      ? withRetry('Reddit', () => postToReddit(article, redditText, activeImageUrl))
+      : Promise.resolve('skipped — no credentials'),
   ]);
 
-  const platforms = ['Threads', 'Instagram'];
+  const platforms = ['Threads', 'Instagram', 'Reddit'];
   let anySuccess = false;
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') {

@@ -1,0 +1,24 @@
+[
+  {
+    "ticker": "INTC",
+    "company": "INTEL CORP",
+    "label": "Q1 '26",
+    "revenue": "$13.6B",
+    "net_income": "$-3.7B",
+    "rev_yoy_pct": 7.184021473119129,
+    "ni_yoy_pct": -354.08038976857495,
+    "gm_pct": 39.38277970096487,
+    "nm_pct": -27.45820136996391
+  },
+  {
+    "ticker": "MRNA",
+    "company": "Moderna, Inc.",
+    "label": "Q1 '26",
+    "revenue": "$389M",
+    "net_income": "$-1.3B",
+    "rev_yoy_pct": 260.18518518518516,
+    "ni_yoy_pct": -38.31101956745623,
+    "gm_pct": null,
+    "nm_pct": -345.24421593830334
+  }
+]

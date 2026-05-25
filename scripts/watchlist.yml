@@ -1,0 +1,127 @@
+# Earnings watchlist — S&P 500 top ~100 by market cap
+# Add or remove tickers here; the pipeline picks up changes automatically.
+
+tickers:
+  # Mega-cap Tech / AI
+  - NVDA
+  - AAPL
+  - MSFT
+  - AMZN
+  - GOOGL
+  - META
+  - TSLA
+  - AVGO
+  - ORCL
+  - AMD
+  - INTC
+
+  # Software / Semiconductors / Cloud
+  - CRM
+  - ADBE
+  - QCOM
+  - TXN
+  - CSCO
+  - NOW
+  - PANW
+  - CRWD
+  - NET
+  - SNOW
+  - DDOG
+  - ZS
+  - PLTR
+  - MRVL
+  - MU
+  - AMAT
+  - LRCX
+  - KLAC
+  - ARM
+  - IBM
+  - ACN
+
+  # Financials
+  - JPM
+  - BAC
+  - WFC
+  - GS
+  - MS
+  - V
+  - MA
+  - AXP
+  - BLK
+  - SCHW
+  - C
+  - PGR
+  - CB
+  - AON
+  - MMC
+  - SPGI
+  - ADP
+
+  # Healthcare / Pharma / Biotech
+  - LLY
+  - UNH
+  - JNJ
+  - ABBV
+  - MRK
+  - PFE
+  - MRNA
+  - TMO
+  - ABT
+  - ISRG
+  - MDT
+  - AMGN
+  - GILD
+  - DHR
+  - SYK
+  - CI
+  - BMY
+
+  # Consumer / Retail
+  - WMT
+  - COST
+  - HD
+  - MCD
+  - SBUX
+  - NKE
+  - LOW
+  - TGT
+  - TJX
+
+  # Consumer Staples
+  - PG
+  - KO
+  - PEP
+
+  # Energy
+  - XOM
+  - CVX
+  - COP
+  - SLB
+
+  # Industrials
+  - CAT
+  - DE
+  - GE
+  - HON
+  - RTX
+  - LMT
+  - ETN
+
+  # Media / Streaming / Travel
+  - NFLX
+  - DIS
+  - CMCSA
+  - SPOT
+  - UBER
+  - ABNB
+
+  # Telecom
+  - VZ
+  - T
+
+  # Utilities / Real Estate
+  - NEE
+  - SO
+  - DUK
+  - PLD
+  - AMT
