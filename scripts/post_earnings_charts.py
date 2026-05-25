@@ -33,13 +33,13 @@ def build_caption(d: dict, max_chars: int) -> str:
 
     if d.get("revenue") and d["revenue"] != "N/A":
         pct = d.get("rev_yoy_pct")
-        arrow = ("▲" if pct >= 0 else "▼") if pct is not None else ""
+        arrow = ("🟢 ▲" if pct >= 0 else "🔴 ▼") if pct is not None else ""
         yoy = f"  {arrow} {pct:+.1f}% YoY" if pct is not None else ""
         lines.append(f"Revenue: {d['revenue']}{yoy}")
 
     if d.get("net_income") and d["net_income"] != "N/A":
         pct = d.get("ni_yoy_pct")
-        arrow = ("▲" if pct >= 0 else "▼") if pct is not None else ""
+        arrow = ("🟢 ▲" if pct >= 0 else "🔴 ▼") if pct is not None else ""
         yoy = f"  {arrow} {pct:+.1f}% YoY" if pct is not None else ""
         lines.append(f"Net Income: {d['net_income']}{yoy}")
 

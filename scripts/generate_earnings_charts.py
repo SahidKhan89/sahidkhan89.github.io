@@ -76,9 +76,31 @@ def check_recent_filing(cik: str, days: int = 2) -> str | None:
     return None
 
 
+def fetch_logo(ticker: str) -> None:
+    """Download logo from FMP if not already in logos/."""
+    logo_dir = ROOT / "logos"
+    logo_dir.mkdir(exist_ok=True)
+    out = logo_dir / f"{ticker}.png"
+    if out.exists():
+        return
+    try:
+        r = requests.get(
+            f"https://financialmodelingprep.com/image-stock/{ticker}.png",
+            timeout=10,
+        )
+        if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
+            out.write_bytes(r.content)
+            print(f"  logo downloaded → logos/{ticker}.png")
+        else:
+            print(f"  no logo found for {ticker} (HTTP {r.status_code})")
+    except Exception as e:
+        print(f"  logo download failed: {e}")
+
+
 def generate_chart(ticker: str, cik: str, company: str, out_path: Path) -> list | None:
     """Fetch EDGAR facts, render chart to out_path. Returns quarters list or None."""
     try:
+        fetch_logo(ticker)
         facts    = fetch_facts(cik)
         quarters = build_trend(facts, 8)
         if len(quarters) < 2:

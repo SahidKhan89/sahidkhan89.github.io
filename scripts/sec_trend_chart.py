@@ -263,14 +263,13 @@ def apply_rounded_header(filepath: str, corner_r: int = 20):
     card_xl = round(w * 0.025)
     card_xr = w - card_xl
     card_yt = round(hdr_h * 0.09)
-    card_yb = hdr_h - 1   # card ends at last header row — never bleeds below
+    card_yb = hdr_h - card_yt  # equal padding top and bottom
 
     mask = Image.new("L", (w, h), 0)
     draw = ImageDraw.Draw(mask)
-    # Rounded rect (all 4 corners), then fill the bottom band to make bottom straight.
+    # All 4 corners rounded — card now floats with equal padding above and below.
     draw.rounded_rectangle([card_xl, card_yt, card_xr, card_yb],
                             radius=corner_r, fill=255)
-    draw.rectangle([card_xl, card_yb - corner_r, card_xr, card_yb], fill=255)
     # Preserve everything below the header boundary (company strip, chart, footer).
     draw.rectangle([0, hdr_h, w, h], fill=255)
 
@@ -477,18 +476,26 @@ def build_figure(quarters: list, company: str, ticker: str,
         pad = my_range * 0.5
         ax2.set_ylim(min(my) - pad, max(my) + pad * 4)
 
-    # Y axis — extend below zero when net income dips negative
+    # Y axis — top covers both revenue and net income; bottom uses IQR fence
+    # to prevent a single extreme loss quarter from collapsing the scale.
     max_rev      = revenues.max() if len(revenues) else 1
-    min_ni       = net_incomes.min()
-    y_bottom     = min(0.0, min_ni * 1.3)
-    use_billions = max_rev >= 1e9
-    if use_billions and max_rev < 10e9:
+    y_top        = max(max_rev, net_incomes.max()) * 1.45
+
+    ni_sorted    = np.sort(net_incomes)
+    q1, q3       = np.percentile(ni_sorted, 25), np.percentile(ni_sorted, 75)
+    iqr          = q3 - q1
+    lower_fence  = q1 - 3 * iqr if iqr > 0 else net_incomes.min()
+    y_bottom     = min(0.0, max(net_incomes.min(), lower_fence) * 1.3)
+
+    y_range      = y_top - y_bottom
+    use_billions = y_range >= 1e9
+    if use_billions and y_range < 10e9:
         fmt_fn = lambda v, _: f"${v/1e9:.1f}B"
     elif use_billions:
         fmt_fn = lambda v, _: f"${v/1e9:.0f}B"
     else:
         fmt_fn = lambda v, _: f"${v/1e6:.0f}M"
-    ax.set_ylim(y_bottom, max_rev * 1.45)
+    ax.set_ylim(y_bottom, y_top)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(fmt_fn))
     ax.tick_params(axis="y", colors=C["grey"], labelsize=11, length=0)
     ax.tick_params(axis="x", length=0)
