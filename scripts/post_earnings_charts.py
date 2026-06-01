@@ -29,19 +29,21 @@ def image_url(ticker: str) -> str:
 
 
 def build_caption(d: dict, max_chars: int) -> str:
-    lines = [f"${d['ticker']} Quarterly Earnings: {d['label']}"]
+    lines = [f"${d['ticker']} Quarterly Earnings Trend"]
 
     if d.get("revenue") and d["revenue"] != "N/A":
         pct = d.get("rev_yoy_pct")
-        arrow = ("🟢 ▲" if pct >= 0 else "🔴 ▼") if pct is not None else ""
-        yoy = f"  {arrow} {pct:+.1f}% YoY" if pct is not None else ""
-        lines.append(f"Revenue: {d['revenue']}{yoy}")
+        emoji = ("🟢" if pct >= 0 else "🔴") if pct is not None else ""
+        yoy = f" ({pct:+.1f}% YoY)" if pct is not None else ""
+        prefix = f"{emoji} " if emoji else ""
+        lines.append(f"{prefix}Revenue: {d['revenue']}{yoy}")
 
     if d.get("net_income") and d["net_income"] != "N/A":
         pct = d.get("ni_yoy_pct")
-        arrow = ("🟢 ▲" if pct >= 0 else "🔴 ▼") if pct is not None else ""
-        yoy = f"  {arrow} {pct:+.1f}% YoY" if pct is not None else ""
-        lines.append(f"Net Income: {d['net_income']}{yoy}")
+        emoji = ("🟢" if pct >= 0 else "🔴") if pct is not None else ""
+        yoy = f" ({pct:+.1f}% YoY)" if pct is not None else ""
+        prefix = f"{emoji} " if emoji else ""
+        lines.append(f"{prefix}Net Income: {d['net_income']}{yoy}")
 
     if d.get("nm_pct") is not None:
         lines.append(f"Net Margin: {d['nm_pct']:.1f}%")
