@@ -2,7 +2,9 @@ name: Post Earnings Charts to Social Media
 
 on:
   schedule:
-    - cron: '0 23 * * 1-5'   # weekdays at 23:00 UTC (6 pm ET) — catches AM and PM reporters
+    - cron: '0 9 * * 1-5'    # weekdays at 09:00 UTC (10 am BST / 9 am GMT)
+    - cron: '0 13 * * 1-5'   # weekdays at 13:00 UTC (2 pm BST / 1 pm GMT)
+    - cron: '0 22 * * 1-5'   # weekdays at 22:00 UTC (11 pm BST / 10 pm GMT)
   workflow_dispatch:
     inputs:
       tickers:
