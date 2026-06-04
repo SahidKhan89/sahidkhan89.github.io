@@ -1,5 +1,6 @@
-# Earnings watchlist — S&P 500 top ~100 by market cap
+# Earnings watchlist — large-cap and high-interest tickers
 # Add or remove tickers here; the pipeline picks up changes automatically.
+# Note: avoid pure banks (JPM, GS etc.) — they use non-standard revenue XBRL tags.
 
 tickers:
   # Mega-cap Tech / AI
@@ -38,24 +39,17 @@ tickers:
   - IBM
   - ACN
 
-  # Financials
-  - JPM
-  - BAC
-  - WFC
-  - GS
-  - MS
+  # Financials / Payments / Insurance
   - V
   - MA
   - AXP
-  - BLK
-  - SCHW
-  - C
+  - PYPL
+  - SPGI
+  - ADP
   - PGR
   - CB
   - AON
   - MMC
-  - SPGI
-  - ADP
 
   # Healthcare / Pharma / Biotech
   - LLY
@@ -75,6 +69,8 @@ tickers:
   - SYK
   - CI
   - BMY
+  - VRTX
+  - HIMS
 
   # Consumer / Retail
   - WMT
@@ -98,7 +94,7 @@ tickers:
   - COP
   - SLB
 
-  # Industrials
+  # Industrials / Aerospace
   - CAT
   - DE
   - GE
@@ -106,6 +102,7 @@ tickers:
   - RTX
   - LMT
   - ETN
+  - BA
 
   # Media / Streaming / Travel
   - NFLX
@@ -114,6 +111,7 @@ tickers:
   - SPOT
   - UBER
   - ABNB
+  - BKNG
 
   # Telecom
   - VZ
@@ -125,6 +123,11 @@ tickers:
   - DUK
   - PLD
   - AMT
+
+  # Software / Cybersecurity / Adtech
+  - WDAY
+  - FTNT
+  - TTD
 
   # High-growth / Retail Favourites
   - APP

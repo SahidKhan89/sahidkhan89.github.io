@@ -10,9 +10,11 @@ Set FORCE_TICKERS=NVDA,AAPL to skip the EDGAR check and force specific tickers.
 
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 
 import matplotlib
@@ -24,7 +26,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent))
 from sec_trend_chart import (
     fetch_facts, build_trend, build_figure, apply_rounded_header,
-    load_logo, load_brand_logo, fmt_money, pct_chg, C, DPI,
+    load_logo, load_brand_logo, fmt_money, pct_chg, quarter_label, C, DPI,
 )
 
 UA         = {"User-Agent": "StockScore App sahidkhan@live.co.uk"}
@@ -53,8 +55,190 @@ def fetch_ticker_map() -> dict:
     }
 
 
+class _TableParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tables, self.current, self.row, self.cell, self.depth = [], [], [], '', 0
+    def handle_starttag(self, tag, attrs):
+        if tag == 'table': self.depth += 1; self.current = [] if self.depth == 1 else self.current
+        elif tag == 'tr' and self.depth: self.row = []
+        elif tag in ('td', 'th') and self.depth: self.cell = ''
+    def handle_endtag(self, tag):
+        if tag == 'table':
+            self.depth -= 1
+            if self.depth == 0: self.tables.append(self.current); self.current = []
+        elif tag == 'tr' and self.depth:
+            if any(c.strip() for c in self.row): self.current.append(self.row)
+        elif tag in ('td', 'th') and self.depth: self.row.append(self.cell.strip()); self.cell = ''
+    def handle_data(self, d):
+        if self.depth: self.cell += d
+
+
+def _fetch_text(url: str) -> str:
+    r = requests.get(url, headers=UA, timeout=15)
+    r.raise_for_status()
+    for enc in ('utf-8', 'latin-1', 'cp1252'):
+        try: return r.content.decode(enc)
+        except: pass
+    return r.content.decode('utf-8', errors='replace')
+
+
+def _detect_scale(html: str) -> float:
+    lower = html.lower()
+    if 'in thousands' in lower: return 0.001
+    if 'in billions'  in lower: return 1000.0
+    return 1.0
+
+
+def fetch_8k_extras(cik: str, accn: str) -> dict:
+    """Parse full quarter financials, EPS, guidance and period end date from an earnings 8-K."""
+    accn_nodash = accn.replace('-', '')
+    cik_int     = str(int(cik))
+    try:
+        idx_html = _fetch_text(
+            f"https://www.sec.gov/Archives/edgar/data/{cik_int}/{accn_nodash}/{accn}-index.htm"
+        )
+    except Exception:
+        return {}
+
+    exhibit_url = None
+    for row in re.findall(r'<tr[^>]*>(.*?)</tr>', idx_html, re.S | re.I):
+        cells = [re.sub(r'<[^>]+>', '', c).strip()
+                 for c in re.findall(r'<td[^>]*>(.*?)</td>', row, re.S | re.I)]
+        if any('EX-99.1' in c for c in cells):
+            hrefs = re.findall(r'href="([^"]+\.htm)"', row, re.I)
+            if hrefs:
+                p = hrefs[0]
+                if not p.startswith('http'):
+                    p = (f"https://www.sec.gov/Archives/edgar/data"
+                         f"/{cik_int}/{accn_nodash}/{p.split('/')[-1]}")
+                exhibit_url = p
+                break
+    if not exhibit_url:
+        return {}
+
+    try:
+        html = _fetch_text(exhibit_url)
+    except Exception:
+        return {}
+
+    scale  = _detect_scale(html)
+    parser = _TableParser()
+    parser.feed(html)
+    result = {}
+
+    # ── Label sets ────────────────────────────────────────────────────────────
+    eps_labels = {'diluted earnings per share', 'earnings per common share - diluted',
+                  'diluted net income per share', 'net income per share - diluted',
+                  'diluted eps', 'net income (loss) per share, diluted'}
+    rev_labels = {'net revenue', 'total net revenue', 'total revenue',
+                  'net revenues', 'total revenues', 'revenues', 'revenue'}
+    gp_labels  = {'gross profit', 'gross margin'}
+    ni_labels  = {'net income', 'net loss', 'net income (loss)',
+                  'net income attributable', 'net loss attributable'}
+
+    def clean(s):
+        return re.sub(r'\s+', ' ', s).strip().lower().rstrip(':').strip('*')
+
+    def first_num(row, allow_small=True):
+        for c in row[1:]:
+            v = re.sub(r'[\s$,]', '', c).replace('(', '-').replace(')', '')
+            if re.match(r'^-?\d[\d.]*$', v):
+                try:
+                    f = float(v)
+                    if allow_small or abs(f) >= 1:
+                        return f
+                except: pass
+        return None
+
+    for t in parser.tables:
+        for row in t:
+            if not row: continue
+            label = clean(row[0])
+            if 'eps' not in result and label in eps_labels:
+                v = first_num(row, allow_small=True)
+                if v is not None and abs(v) < 1000:
+                    result['eps'] = v
+            if 'quarter_revenue' not in result and label in rev_labels:
+                v = first_num(row, allow_small=False)
+                if v is not None:
+                    result['quarter_revenue'] = v * scale
+            if 'quarter_gross_profit' not in result and label in gp_labels:
+                v = first_num(row, allow_small=False)
+                if v is not None:
+                    rev = result.get('quarter_revenue', float('inf'))
+                    if abs(v * scale) < abs(rev) * 1.5:
+                        result['quarter_gross_profit'] = v * scale
+            if 'quarter_net_income' not in result and label in ni_labels:
+                v = first_num(row, allow_small=False)
+                if v is not None:
+                    result['quarter_net_income'] = v * scale
+
+    # ── Quarter period end date from table header ──────────────────────────────
+    text = re.sub(r'<[^>]+>', ' ', html)
+    text = re.sub(r'&#\d+;|&[a-z]+;', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+
+    # Scan all table cells for the first plausible recent quarter-end date.
+    # This avoids regex issues with compound headers like
+    # "Fiscal Quarter Ended  Two Fiscal Quarters Ended  May 3, 2026".
+    _date_fmts = ('%B %d, %Y', '%B %d,%Y', '%B %d %Y',
+                  '%b %d, %Y', '%b. %d, %Y', '%b %d %Y')
+    _today = datetime.now(timezone.utc).replace(tzinfo=None)
+    for t in parser.tables:
+        if 'quarter_end_date' in result:
+            break
+        for row in t:
+            for cell in row:
+                raw = re.sub(r'\s+', ' ', cell).strip().rstrip(',')
+                if not re.search(r'[A-Za-z]', raw):
+                    continue
+                for fmt in _date_fmts:
+                    try:
+                        dt = datetime.strptime(raw, fmt)
+                        days_ago = (_today - dt).days
+                        if 10 < days_ago < 200:   # plausible recent quarter end
+                            result['quarter_end_date'] = dt.strftime('%Y-%m-%d')
+                            break
+                    except ValueError:
+                        pass
+                if 'quarter_end_date' in result:
+                    break
+            if 'quarter_end_date' in result:
+                break
+
+    # ── Guidance ──────────────────────────────────────────────────────────────
+    m = re.search(
+        r'revenue\s+is\s+expected\s+to\s+be\s+\$?([\d,.]+)\s*(billion|million|B|M)',
+        text, re.I
+    )
+    if m:
+        val  = float(m.group(1).replace(',', ''))
+        unit = m.group(2).lower()
+        result['guidance_rev'] = val * (1e9 if unit in ('billion', 'b') else 1e6)
+
+    return result
+
+
+def find_latest_earnings_8k(cik: str) -> tuple[str | None, str | None]:
+    """Return (date, accession_number) of the most recent Item 2.02 8-K, or (None, None)."""
+    r = requests.get(f"https://data.sec.gov/submissions/CIK{cik}.json",
+                     headers=UA, timeout=15)
+    r.raise_for_status()
+    recent = r.json().get("filings", {}).get("recent", {})
+    for form, date, accn, items in zip(
+        recent.get("form", []),
+        recent.get("filingDate", []),
+        recent.get("accessionNumber", []),
+        recent.get("items", [""] * 500),
+    ):
+        if form == "8-K" and "2.02" in str(items):
+            return date, accn
+    return None, None
+
+
 def check_recent_filing(cik: str, days: int = 2) -> str | None:
-    """Return '10-Q' or '10-K' if company filed one within `days` days, else None."""
+    """Return filing type if company filed a 10-Q, 10-K, or earnings 8-K within `days` days."""
     r = requests.get(
         f"https://data.sec.gov/submissions/CIK{cik}.json",
         headers=UA, timeout=15,
@@ -63,10 +247,13 @@ def check_recent_filing(cik: str, days: int = 2) -> str | None:
     recent = r.json().get("filings", {}).get("recent", {})
     forms  = recent.get("form", [])
     dates  = recent.get("filingDate", [])
+    items  = recent.get("items", [""] * len(forms))
     cutoff = datetime.now(timezone.utc).date() - timedelta(days=days)
 
-    for form, date_str in zip(forms, dates):
-        if form not in ("10-Q", "10-K"):
+    for form, date_str, item in zip(forms, dates, items):
+        if form not in ("10-Q", "10-K", "8-K"):
+            continue
+        if form == "8-K" and "2.02" not in str(item):
             continue
         try:
             if datetime.strptime(date_str, "%Y-%m-%d").date() >= cutoff:
@@ -108,7 +295,50 @@ def generate_chart(ticker: str, cik: str, company: str, out_path: Path) -> list 
             return None
         co_logo = load_logo(ticker)
         br_logo = load_brand_logo()
-        fig = build_figure(quarters, company, ticker, co_logo, br_logo)
+
+        _, accn = find_latest_earnings_8k(cik)
+        extras  = fetch_8k_extras(cik, accn) if accn else {}
+
+        # Stitch the 8-K quarter into the trend if it isn't in companyfacts yet
+        # (common in the 5–40 day window between earnings release and 10-Q filing)
+        qed = extras.get('quarter_end_date')
+        if qed and extras.get('quarter_revenue'):
+            existing_keys = {q['key'] for q in quarters}
+            if qed not in existing_keys:
+                # 8-K values are in millions; companyfacts uses raw dollars
+                def _to_usd(v): return v * 1e6 if v is not None else None
+                new_q = {
+                    'end':          datetime.strptime(qed, '%Y-%m-%d'),
+                    'key':          qed,
+                    'label':        quarter_label(qed),
+                    'revenue':      _to_usd(extras['quarter_revenue']),
+                    'gross_profit': _to_usd(extras.get('quarter_gross_profit')),
+                    'net_income':   _to_usd(extras.get('quarter_net_income')),
+                }
+                quarters = (quarters + [new_q])[-8:]  # keep latest 8
+                rev_b = extras['quarter_revenue'] / 1e3
+                print(f"  8-K quarter stitched: {quarter_label(qed).replace(chr(10),' ')} "
+                      f"(rev ${rev_b:.1f}B)")
+
+        # Derive guidance label from the latest quarter end (calendar-consistent)
+        if extras.get('guidance_rev'):
+            latest_end = quarters[-1]['end']
+            next_end   = latest_end + timedelta(days=92)
+            extras['guidance_label'] = quarter_label(next_end.strftime("%Y-%m-%d"))
+
+        if extras:
+            keys = [k for k in extras
+                    if k not in ('guidance_label', 'quarter_end_date',
+                                 'quarter_revenue', 'quarter_gross_profit', 'quarter_net_income')]
+            if keys:
+                print(f"  8-K extras: {', '.join(keys)}")
+
+        fig = build_figure(
+            quarters, company, ticker, co_logo, br_logo,
+            eps=extras.get('eps'),
+            guidance_rev=extras.get('guidance_rev'),
+            guidance_label=extras.get('guidance_label'),
+        )
         fig.savefig(str(out_path), dpi=DPI, facecolor=C["bg"])
         plt.close(fig)
         apply_rounded_header(str(out_path))

@@ -42,8 +42,9 @@ C = {
     "div":     "#1a2640",
     "rev_bar": "#14d1c3",
     "ni_bar":  "#3de07a",
+    "gm_line": "#b39ddb",   # gross margin % line
 }
-FIGW, FIGH, DPI = 10.8, 13.5, 100   # 1080×1350 — Instagram feed 4:5
+FIGW, FIGH, DPI = 10.8, 13.5, 200   # 2160×2700 — 2× retina, downscales to 1080×1350
 LOGO_DIR = Path(__file__).parent.parent / "logos"  # repo-root/logos/
 
 SEC = "https://data.sec.gov"
@@ -53,7 +54,8 @@ TAGS = {
     "revenue":      ["RevenueFromContractWithCustomerExcludingAssessedTax",
                      "Revenues", "SalesRevenueNet"],
     "gross_profit": ["GrossProfit"],
-    "net_income":   ["NetIncomeLoss"],
+    "net_income":   ["NetIncomeLoss", "ProfitLoss",
+                     "NetIncomeLossAvailableToCommonStockholdersBasic"],
 }
 
 # ── SEC EDGAR helpers ──────────────────────────────────────────────────────────
@@ -281,7 +283,8 @@ def apply_rounded_header(filepath: str, corner_r: int = 20):
 # ── Main figure ────────────────────────────────────────────────────────────────
 
 def build_figure(quarters: list, company: str, ticker: str,
-                 co_logo=None, br_logo=None):
+                 co_logo=None, br_logo=None,
+                 eps=None, guidance_rev=None, guidance_label=None):
 
     latest = quarters[-1]
     rev    = latest["revenue"]
@@ -353,12 +356,23 @@ def build_figure(quarters: list, company: str, ticker: str,
     gap    = (1 - 2 * pad_l - 3 * card_w) / 2
     CARD_R = 0.030   # fixed corner radius for cards (more prominent rounding)
 
-    stat_defs = [
-        ("Revenue",    fmt_b(rev),  rev_yoy, "YoY"),
-        ("Net Income", fmt_b(ni),   ni_yoy,  "YoY"),
-        ("Net Margin", f"{nm_pct:.1f}%" if nm_pct is not None else "N/A",
-                                    gm_pct,  "GM"),
-    ]
+    nm_str     = f"NM {nm_pct:.1f}%" if nm_pct is not None else ""
+    gm_str     = f"GM {gm_pct:.1f}%" if gm_pct is not None else ""
+    margin_sub = "  ·  ".join(s for s in [nm_str, gm_str] if s)
+
+    if eps is not None:
+        stat_defs = [
+            ("Revenue",    fmt_b(rev),       rev_yoy, "YoY"),
+            ("Net Income", fmt_b(ni),        ni_yoy,  "YoY"),
+            ("EPS",        f"${eps:.2f}",    None,    "EPS"),
+        ]
+    else:
+        stat_defs = [
+            ("Revenue",    fmt_b(rev),  rev_yoy, "YoY"),
+            ("Net Income", fmt_b(ni),   ni_yoy,  "YoY"),
+            ("Net Margin", f"{nm_pct:.1f}%" if nm_pct is not None else "N/A",
+                                        gm_pct,  "GM"),
+        ]
 
     for i, (name, val_str, aux_val, aux_lbl) in enumerate(stat_defs):
         cx = pad_l + i * (card_w + gap)
@@ -377,6 +391,9 @@ def build_figure(quarters: list, company: str, ticker: str,
         elif aux_lbl == "GM" and aux_val is not None:
             ax_s.text(cx + card_w / 2, 0.22, f"GM {aux_val:.1f}%",
                       color=C["teal"], fontsize=11, ha="center", va="center", zorder=3)
+        elif aux_lbl == "EPS" and margin_sub:
+            ax_s.text(cx + card_w / 2, 0.22, margin_sub,
+                      color=C["grey"], fontsize=9.5, ha="center", va="center", zorder=3)
 
     # ── Legend strip — each item centred under its matching stat box ──────────
     LEG_LEFT  = 0.09
@@ -392,18 +409,24 @@ def build_figure(quarters: list, company: str, ticker: str,
 
     # hw = half-group width in ax_leg coordinate space (icon + gap + text)
     leg_items = [
-        (C["rev_bar"], "s", "Revenue",      0.038),
-        (C["ni_bar"],  "s", "Net Income",   0.048),
-        (C["amber"],   "o", "Net Margin %", 0.058),
+        (C["rev_bar"], "s", "Revenue",       0.038, "solid"),
+        (C["ni_bar"],  "s", "Net Income",    0.048, "solid"),
+        (C["amber"],   "o", "Net Margin %",  0.052, "solid"),
+        (C["gm_line"], "o", "Gross Margin %",0.060, "dashed"),
     ]
-    for i, (col, mrk, lbl, hw) in enumerate(leg_items):
-        cx = leg_centers[i]
-        ax_leg.plot(cx - hw, 0.50, marker=mrk, color=col, markersize=9,
+    # distribute 4 items evenly across the legend width
+    n_items = len(leg_items)
+    for i, (col, mrk, lbl, hw, ls) in enumerate(leg_items):
+        cx = (i + 0.5) / n_items
+        ax_leg.plot(cx - hw, 0.50, marker=mrk, color=col, markersize=8,
                     linestyle="none", zorder=3,
                     markeredgecolor=C["bg"] if mrk == "o" else col,
                     markeredgewidth=1.5 if mrk == "o" else 0)
+        # draw a short line segment to indicate solid vs dashed
+        ax_leg.plot([cx - hw - 0.01, cx - hw + 0.01], [0.50, 0.50],
+                    color=col, lw=1.8, linestyle=ls, zorder=2)
         ax_leg.text(cx - hw + 0.022, 0.50, lbl, color=C["grey"],
-                    fontsize=10.5, va="center", ha="left", zorder=3)
+                    fontsize=9.5, va="center", ha="left", zorder=3)
 
     # ── Bar chart ─────────────────────────────────────────────────────────────
     ax = fig.add_axes([0.11, 0.095, 0.83, 0.437])
@@ -424,6 +447,17 @@ def build_figure(quarters: list, company: str, ticker: str,
         else None
         for q in quarters
     ]
+    gm_margins  = [
+        (q["gross_profit"] / q["revenue"] * 100)
+        if (q.get("gross_profit") is not None and q["revenue"])
+        else None
+        for q in quarters
+    ]
+
+    # extend x for guidance bar
+    has_guidance = guidance_rev is not None
+    x_total = n + (1 if has_guidance else 0)
+    x_guide = n  # position of guidance bar
 
     rev_alphas = [0.40] * (n - 1) + [0.92]
     ni_alphas  = [0.45] * (n - 1) + [0.94]
@@ -431,24 +465,31 @@ def build_figure(quarters: list, company: str, ticker: str,
     rev_bars = ax.bar(x - OFF, revenues,    BW, zorder=3)
     ni_bars  = ax.bar(x + OFF, net_incomes, BW, zorder=3)
 
+    if has_guidance:
+        ax.bar(x_guide - OFF, guidance_rev, BW, zorder=2,
+               facecolor=C["rev_bar"], alpha=0.22,
+               edgecolor=C["rev_bar"], linewidth=1.2, linestyle="--")
+
     for bar, a in zip(rev_bars, rev_alphas):
         bar.set_facecolor(C["rev_bar"]); bar.set_alpha(a)
     for bar, a in zip(ni_bars, ni_alphas):
         bar.set_facecolor(C["ni_bar"]); bar.set_alpha(a)
 
-    def bar_label(axis, xpos, val, color):
+    def bar_label(axis, xpos, val, color, suffix=""):
         if val:
             if val >= 0:
-                axis.text(xpos, val * 1.02, fmt_b(val, dec=1),
+                axis.text(xpos, val * 1.02, fmt_b(val, dec=1) + suffix,
                           color=color, fontsize=11, fontweight="bold",
                           ha="center", va="bottom", zorder=5)
             else:
-                axis.text(xpos, val * 1.05, fmt_b(val, dec=1),
+                axis.text(xpos, val * 1.05, fmt_b(val, dec=1) + suffix,
                           color=color, fontsize=11, fontweight="bold",
                           ha="center", va="top", zorder=5)
 
     bar_label(ax, (n - 1) - OFF, revenues[-1],    C["teal"])
     bar_label(ax, (n - 1) + OFF, net_incomes[-1], C["green"])
+    if has_guidance:
+        bar_label(ax, x_guide - OFF, guidance_rev, C["amber"], suffix=" (est.)")
 
     # Net margin line — skip quarters with extreme margins (beyond ±200%)
     ax2 = ax.twinx()
@@ -459,22 +500,41 @@ def build_figure(quarters: list, company: str, ticker: str,
 
     valid = [(xi, m) for xi, m in zip(x, margins)
              if m is not None and -200 <= m <= 200]
+    gm_valid = [(xi, gm) for xi, gm in zip(x, gm_margins)
+                if gm is not None and -200 <= gm <= 200]
+
+    all_margin_vals = ([m for _, m in valid] + [gm for _, gm in gm_valid])
+
+    if all_margin_vals:
+        all_min = min(all_margin_vals)
+        all_max = max(all_margin_vals)
+        m_range = (all_max - all_min) or 10
+        pad     = m_range * 0.5
+        ax2_lo  = all_min - pad * 0.5
+        ax2_hi  = all_max + pad * 4
+        ax2.set_ylim(ax2_lo, ax2_hi)
+        # offset proportional to visible range so labels stay close to their line
+        label_offset = (ax2_hi - ax2_lo) * 0.04
+
     if valid:
         mx, my = zip(*valid)
         ax2.plot(mx, my, color=C["amber"], lw=2.5, zorder=5,
                  marker="o", markersize=8,
                  markerfacecolor=C["amber"],
                  markeredgecolor=C["bg"], markeredgewidth=1.8)
-        my_range     = (max(my) - min(my)) or max(abs(m) for m in my) or 10
-        label_offset = max(my_range * 0.12, 3)
         for xi, mi in zip(mx, my):
             offset = label_offset if mi >= 0 else -label_offset
             va     = "bottom" if mi >= 0 else "top"
             ax2.text(xi, mi + offset, f"{mi:.0f}%",
                      color=C["amber"], fontsize=8.5,
                      ha="center", va=va, zorder=6)
-        pad = my_range * 0.5
-        ax2.set_ylim(min(my) - pad, max(my) + pad * 4)
+
+    if gm_valid:
+        gx, gy = zip(*gm_valid)
+        ax2.plot(gx, gy, color=C["gm_line"], lw=2.0, zorder=4,
+                 linestyle="--", marker="o", markersize=6,
+                 markerfacecolor=C["gm_line"],
+                 markeredgecolor=C["bg"], markeredgewidth=1.5)
 
     # Y axis — top covers both revenue and net income; bottom uses IQR fence
     # to prevent a single extreme loss quarter from collapsing the scale.
@@ -503,10 +563,23 @@ def build_figure(quarters: list, company: str, ticker: str,
     ax.set_axisbelow(True)
 
     labels = [q["label"] for q in quarters]
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=11.5, fontweight="bold",
+    if has_guidance:
+        guide_tick = guidance_label or labels[-1]
+        all_ticks  = list(x) + [x_guide]
+        all_labels = labels + [guide_tick]
+        ax.set_xlim(-0.6, x_guide + 0.6)
+    else:
+        all_ticks  = list(x)
+        all_labels = labels
+    ax.set_xticks(all_ticks)
+    ax.set_xticklabels(all_labels, fontsize=11.5, fontweight="bold",
                        color=C["grey"], linespacing=1.3)
-    ax.get_xticklabels()[-1].set_color(C["teal"])
+    tick_labels = ax.get_xticklabels()
+    if has_guidance:
+        tick_labels[-1].set_color(C["amber"])   # guidance quarter
+        tick_labels[-2].set_color(C["teal"])    # latest real quarter
+    else:
+        tick_labels[-1].set_color(C["teal"])
 
     # ── Footer ────────────────────────────────────────────────────────────────
     ax_f = fig.add_axes([0, 0, 1, 0.050])
