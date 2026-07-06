@@ -1,17 +1,18 @@
 {
   "posted": [
-    "TSLA_Q1 '26",
-    "HON_Q1 '26",
-    "ORCL_Q2 '26",
-    "PANW_Q2 '26",
     "ORCL_Q1 '26",
-    "MDT_Q1 '26",
-    "MU_Q2 '26",
-    "MDT_Q2 '26",
-    "ACN_Q2 '26",
-    "ADBE_Q2 '26",
     "COST_Q2 '26",
+    "MDT_Q2 '26",
     "NKE_Q1 '26",
-    "AVGO_Q2 '26"
+    "AVGO_Q2 '26",
+    "TSLA_Q1 '26",
+    "ACN_Q2 '26",
+    "MU_Q2 '26",
+    "ADBE_Q2 '26",
+    "ORCL_Q2 '26",
+    "MDT_Q1 '26",
+    "ABBV_Q1 '26",
+    "PANW_Q2 '26",
+    "HON_Q1 '26"
   ]
 }
