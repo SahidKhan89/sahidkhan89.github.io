@@ -1,4 +1,4 @@
-name: Post Analyst Rating Changes to Social Media
+name: Post Analyst Rating to Social Media
 
 on:
   schedule:
