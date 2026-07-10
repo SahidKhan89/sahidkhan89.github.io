@@ -1,2 +1,10 @@
 # Transient pipeline file — regenerated each run, not needed in history
 scripts/_post_manifest.json
+scripts/_earnings_calendar_manifest.json
+scripts/_ratings_manifest.json
+scripts/_dividends_manifest.json
+
+# OS / Python cruft
+.DS_Store
+__pycache__/
+*.pyc

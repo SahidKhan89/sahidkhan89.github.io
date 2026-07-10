@@ -1,0 +1,67 @@
+name: Post Analyst Rating Changes to Social Media
+
+on:
+  schedule:
+    - cron: '0 19 * * 1-5'   # weekdays at 19:00 UTC (~8pm BST / 7pm GMT in winter)
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Force a specific date (YYYY-MM-DD) — skips "today"'
+        required: false
+        default: ''
+
+jobs:
+  post-ratings:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Generate analyst ratings card
+        run: python scripts/generate_ratings_card.py
+        env:
+          # No BACKEND_URL secret set here on purpose — PythonAnywhere's free-tier
+          # proxy blocks benzinga.com, so this relies on the script's own default
+          # (the Koyeb deployment). See comment in the script.
+          FORCE_DATE: ${{ github.event.inputs.date }}
+
+      - name: Commit card image
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add images/ratings/
+          git diff --staged --quiet || git commit -m "chore: add analyst ratings card [skip ci]"
+          git pull --rebase origin main
+          git push
+
+      - name: Post to social media
+        run: python scripts/post_ratings.py
+        env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID:      ${{ secrets.THREADS_USER_ID }}
+          IG_ACCESS_TOKEN:      ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID:           ${{ secrets.IG_USER_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID:            ${{ secrets.FB_PAGE_ID }}
+          GITHUB_REPOSITORY:    ${{ github.repository }}
+          GITHUB_REF_NAME:      ${{ github.ref_name }}
+
+      - name: Commit posted tracking
+        run: |
+          git add data/posted_ratings.json
+          git diff --staged --quiet || git commit -m "chore: update posted ratings [skip ci]"
+          git pull --rebase origin main
+          git push

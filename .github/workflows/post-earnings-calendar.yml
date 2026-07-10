@@ -1,0 +1,67 @@
+name: Post Earnings Calendar to Social Media
+
+on:
+  schedule:
+    - cron: '0 7 * * 1-5'    # weekdays at 07:00 UTC (8am BST / 7am GMT) — before US market open
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Force a specific date (YYYY-MM-DD) — skips "today"'
+        required: false
+        default: ''
+
+jobs:
+  post-earnings-calendar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Generate earnings calendar card
+        run: python scripts/generate_earnings_calendar_card.py
+        env:
+          # No BACKEND_URL secret set here on purpose — PythonAnywhere's free-tier
+          # proxy silently breaks the SavvyTrader call, so this relies on the
+          # script's own default (the Koyeb deployment). See script comment.
+          FORCE_DATE: ${{ github.event.inputs.date }}
+
+      - name: Commit card image
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add images/earnings-calendar/
+          git diff --staged --quiet || git commit -m "chore: add earnings calendar card [skip ci]"
+          git pull --rebase origin main
+          git push
+
+      - name: Post to social media
+        run: python scripts/post_earnings_calendar.py
+        env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID:      ${{ secrets.THREADS_USER_ID }}
+          IG_ACCESS_TOKEN:      ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID:           ${{ secrets.IG_USER_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID:            ${{ secrets.FB_PAGE_ID }}
+          GITHUB_REPOSITORY:    ${{ github.repository }}
+          GITHUB_REF_NAME:      ${{ github.ref_name }}
+
+      - name: Commit posted tracking
+        run: |
+          git add data/posted_earnings_calendar.json
+          git diff --staged --quiet || git commit -m "chore: update posted earnings calendar [skip ci]"
+          git pull --rebase origin main
+          git push

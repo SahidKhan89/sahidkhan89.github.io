@@ -1,0 +1,67 @@
+name: Post Dividends Calendar to Social Media
+
+on:
+  schedule:
+    - cron: '0 16 * * 1-5'   # weekdays at 16:00 UTC (~5pm BST / 4pm GMT in winter) — posts the next market day's ex-div date
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Force a specific target ex-div date (YYYY-MM-DD) — bypasses the market-day lookahead'
+        required: false
+        default: ''
+
+jobs:
+  post-dividends:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Generate dividends calendar card
+        run: python scripts/generate_dividends_card.py
+        env:
+          # No BACKEND_URL secret set here on purpose — PythonAnywhere's free-tier
+          # proxy blocks api.divvydiary.com, so this relies on the script's own
+          # default (the Koyeb deployment). See comment in the script.
+          FORCE_DATE: ${{ github.event.inputs.date }}
+
+      - name: Commit card image
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add images/dividends/
+          git diff --staged --quiet || git commit -m "chore: add dividends calendar card [skip ci]"
+          git pull --rebase origin main
+          git push
+
+      - name: Post to social media
+        run: python scripts/post_dividends.py
+        env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID:      ${{ secrets.THREADS_USER_ID }}
+          IG_ACCESS_TOKEN:      ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID:           ${{ secrets.IG_USER_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          FB_PAGE_ID:            ${{ secrets.FB_PAGE_ID }}
+          GITHUB_REPOSITORY:    ${{ github.repository }}
+          GITHUB_REF_NAME:      ${{ github.ref_name }}
+
+      - name: Commit posted tracking
+        run: |
+          git add data/posted_dividends.json
+          git diff --staged --quiet || git commit -m "chore: update posted dividends [skip ci]"
+          git pull --rebase origin main
+          git push
