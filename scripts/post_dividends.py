@@ -39,7 +39,7 @@ def build_caption(entry: dict, max_chars: int) -> str:
     tickers = entry.get("tickers", [])
     if tickers:
         lines.append("")
-        lines.append(" ".join(f"#{t}" for t in tickers[:10]))
+        lines.append(" ".join(f"#{t}" for t in tickers[:4]))
 
     result = "\n".join(lines)
     if len(result) > max_chars:
