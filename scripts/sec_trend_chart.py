@@ -257,7 +257,8 @@ def pill(ax, x, y, w, h, color, alpha=1.0, zorder=3, r=None):
 # ── Pillow post-processing: rounded header card ────────────────────────────────
 
 def apply_rounded_header(filepath: str, corner_r: int = 20):
-    """Round only the top corners of the header card; bottom edge is straight."""
+    """Rounds all 4 corners of the floating header card (same treatment as the
+    other card types' headers in scripts/social_style.py)."""
     img  = Image.open(filepath).convert("RGB")
     w, h = img.size
 
@@ -586,7 +587,7 @@ def build_figure(quarters: list, company: str, ticker: str,
     ax_f.patch.set_visible(False)
     ax_f.set_xlim(0, 1); ax_f.set_ylim(0, 1); ax_f.axis("off")
     ax_f.plot([0.04, 0.96], [0.88, 0.88], color=C["div"], lw=1.2)
-    ax_f.text(0.5, 0.36, "@StockScoreUK  ·  Source: SEC EDGAR",
+    ax_f.text(0.5, 0.36, "@StockScoreUK - daily market insights",
               color=C["grey"], fontsize=14, ha="center", va="center")
 
     return fig

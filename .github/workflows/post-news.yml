@@ -1,9 +1,7 @@
 name: Post Market News to Social Media
 
 on:
-  schedule:
-    - cron: '0 * * * *'  # every hour
-  workflow_dispatch:                               # allow manual trigger from the Actions tab
+  workflow_dispatch:                               # manual trigger only — automatic hourly schedule removed
 
 jobs:
   post-news:
