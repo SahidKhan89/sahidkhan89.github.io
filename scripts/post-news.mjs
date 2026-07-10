@@ -109,6 +109,24 @@ function buildCaption(article, maxChars) {
   return title + '\n\n' + summarySlice + footer;
 }
 
+// ─── Crop avoidance ────────────────────────────────────────────────────────────
+// The card image is a fixed-size graphic — very long headlines get visually
+// clipped by the renderer — and captions get hard-truncated once they blow past
+// the tightest platform limit (Threads/Reddit = 500 chars). There's always a
+// backlog of fresh articles, so just skip anything that would come out cropped
+// instead of posting a mangled version.
+
+const TITLE_IMAGE_LIMIT = 90; // conservative guess at the card renderer's wrap limit — tune after seeing real crops
+
+function wouldCrop(article) {
+  const title = article.title || '';
+  if (title.length > TITLE_IMAGE_LIMIT) return true;
+
+  const hashtags = generateHashtags(title, article.summary || '');
+  const footer   = hashtags ? '\n\n' + hashtags : '';
+  return (title + footer).length >= 500; // Threads/Reddit caption limit
+}
+
 // ─── Card image URL ───────────────────────────────────────────────────────────
 
 function cardImageUrl(article) {
@@ -278,6 +296,22 @@ async function postToReddit(article, caption, imageUrl) {
   return submitData?.json?.data?.url ?? 'posted';
 }
 
+// ─── Facebook Page ─────────────────────────────────────────────────────────────
+
+async function postToFacebook(caption, imageUrl) {
+  const token  = process.env.FB_PAGE_ACCESS_TOKEN;
+  const pageId = process.env.FB_PAGE_ID;
+
+  const resp = await fetch(`https://graph.facebook.com/v23.0/${pageId}/photos`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ url: imageUrl, caption, access_token: token }),
+  });
+  const data = await resp.json();
+  if (data.error) throw new Error(`Facebook post error: ${data.error.message}`);
+  return data.post_id || data.id;
+}
+
 // ─── Instagram ────────────────────────────────────────────────────────────────
 
 async function postToInstagram(caption, imageUrl) {
@@ -336,6 +370,12 @@ async function main() {
   let activeImageUrl = null;
 
   for (const candidate of candidates) {
+    if (wouldCrop(candidate)) {
+      console.log(`\nSkipping (would crop): ${candidate.title}`);
+      posted.add(candidate.link);
+      continue;
+    }
+
     const imageUrl = cardImageUrl(candidate);
     console.log(`\nTrying: ${candidate.title}`);
     const imageReady = await warmCardImage(imageUrl);
@@ -377,12 +417,16 @@ async function main() {
       ? withRetry('Instagram', () => postToInstagram(igText, activeImageUrl))
       : Promise.resolve('skipped — no credentials'),
 
+    (process.env.FB_PAGE_ACCESS_TOKEN && process.env.FB_PAGE_ID)
+      ? withRetry('Facebook', () => postToFacebook(igText, activeImageUrl))
+      : Promise.resolve('skipped — no credentials'),
+
     (process.env.REDDIT_CLIENT_ID && process.env.REDDIT_SUBREDDIT)
       ? withRetry('Reddit', () => postToReddit(article, redditText, activeImageUrl))
       : Promise.resolve('skipped — no credentials'),
   ]);
 
-  const platforms = ['Threads', 'Instagram', 'Reddit'];
+  const platforms = ['Threads', 'Instagram', 'Facebook', 'Reddit'];
   let anySuccess = false;
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') {

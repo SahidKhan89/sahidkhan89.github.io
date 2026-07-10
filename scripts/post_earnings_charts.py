@@ -113,6 +113,20 @@ def post_to_instagram(caption: str, img_url: str) -> str:
     return pd_["id"]
 
 
+def post_to_facebook(caption: str, img_url: str) -> str:
+    token   = os.environ["FB_PAGE_ACCESS_TOKEN"]
+    page_id = os.environ["FB_PAGE_ID"]
+
+    resp = requests.post(
+        f"https://graph.facebook.com/v23.0/{page_id}/photos",
+        json={"url": img_url, "caption": caption, "access_token": token},
+    )
+    data = resp.json()
+    if "error" in data:
+        raise RuntimeError(f"Facebook post: {data['error']['message']}")
+    return data.get("post_id", data.get("id"))
+
+
 def posting_key(entry: dict) -> str:
     return f"{entry['ticker']}_{entry['label']}"
 
@@ -140,6 +154,8 @@ def main():
                        os.environ.get("THREADS_USER_ID"))
     has_ig      = bool(os.environ.get("IG_ACCESS_TOKEN") and
                        os.environ.get("IG_USER_ID"))
+    has_fb      = bool(os.environ.get("FB_PAGE_ACCESS_TOKEN") and
+                       os.environ.get("FB_PAGE_ID"))
 
     new_entries = [e for e in manifest if dry_run or posting_key(e) not in posted]
     skipped     = len(manifest) - len(new_entries)
@@ -152,7 +168,8 @@ def main():
     mode_label = "DRY RUN" if dry_run else "Posting"
     print(f"{mode_label}: {len(new_entries)} chart(s) "
           f"[Threads={'yes' if has_threads else 'no'}, "
-          f"Instagram={'yes' if has_ig else 'no'}]")
+          f"Instagram={'yes' if has_ig else 'no'}, "
+          f"Facebook={'yes' if has_fb else 'no'}]")
 
     any_posted = False
     for i, entry in enumerate(new_entries):
@@ -190,6 +207,14 @@ def main():
                 success = True
             except Exception as e:
                 print(f"  ✗ Instagram: {e}")
+
+        if has_fb:
+            try:
+                fbid = post_to_facebook(ig_caption, img_url)
+                print(f"  ✓ Facebook: {fbid}")
+                success = True
+            except Exception as e:
+                print(f"  ✗ Facebook: {e}")
 
         if success:
             posted.add(posting_key(entry))
