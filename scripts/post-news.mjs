@@ -111,20 +111,35 @@ function buildCaption(article, maxChars) {
 
 // ─── Crop avoidance ────────────────────────────────────────────────────────────
 // The card image is a fixed-size graphic — very long headlines get visually
-// clipped by the renderer — and captions get hard-truncated once they blow past
-// the tightest platform limit (Threads/Reddit = 500 chars). There's always a
-// backlog of fresh articles, so just skip anything that would come out cropped
-// instead of posting a mangled version.
+// clipped by the renderer. Captions get hard-truncated once the title+hashtags
+// alone blow past a platform's limit, and even when the title fits, a long
+// article summary gets sliced mid-sentence to fill the remaining room (see
+// buildCaption). There's always a backlog of fresh articles, so just skip
+// anything that would come out cropped instead of posting a mangled version.
 
 const TITLE_IMAGE_LIMIT = 90; // conservative guess at the card renderer's wrap limit — tune after seeing real crops
+const CAPTION_LIMITS    = [500, 2200]; // Threads/Reddit, then Instagram/Facebook
+
+function captionTruncated(article, maxChars) {
+  const title    = article.title   || '';
+  const summary  = article.summary || '';
+  const hashtags = generateHashtags(title, summary);
+  const footer   = hashtags ? '\n\n' + hashtags : '';
+  const base     = title + footer;
+
+  if (base.length >= maxChars) return true; // title+hashtags alone don't fit
+
+  const summaryRoom = maxChars - base.length - 2;
+  if (summaryRoom < 30 || !summary) return false; // summary omitted outright, not cropped mid-sentence
+
+  return summary.length > summaryRoom; // summary would be sliced mid-sentence
+}
 
 function wouldCrop(article) {
   const title = article.title || '';
   if (title.length > TITLE_IMAGE_LIMIT) return true;
 
-  const hashtags = generateHashtags(title, article.summary || '');
-  const footer   = hashtags ? '\n\n' + hashtags : '';
-  return (title + footer).length >= 500; // Threads/Reddit caption limit
+  return CAPTION_LIMITS.some(limit => captionTruncated(article, limit));
 }
 
 // ─── Card image URL ───────────────────────────────────────────────────────────
