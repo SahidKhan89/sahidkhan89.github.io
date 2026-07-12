@@ -19,7 +19,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -79,12 +79,6 @@ def _best_label(draw, short: str, fnt, max_w: int, max_lines: int = 1) -> list:
     if "…" not in "".join(lines):
         return lines
     return ss.wrap_text(draw, short, fnt, max_w, max_lines)
-
-
-def last_market_day(d):
-    while d.weekday() >= 5:   # Sat/Sun
-        d -= timedelta(days=1)
-    return d
 
 
 def fetch_heatmap() -> list:
@@ -211,7 +205,7 @@ def main():
     if forced:
         date_obj = datetime.strptime(forced, "%Y-%m-%d").date()
     else:
-        date_obj = last_market_day(datetime.now(timezone.utc).date())
+        date_obj = ss.last_market_day(datetime.now(timezone.utc).date())
     date_str   = date_obj.strftime("%Y-%m-%d")
     human_date = date_obj.strftime("%a %d %b")
 

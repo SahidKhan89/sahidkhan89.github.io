@@ -8,9 +8,20 @@ chart, but built with plain PIL (grid-of-cards layouts don't need matplotlib).
 """
 
 import math
+from datetime import timedelta
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+
+
+def last_market_day(d):
+    """Walks a date back to the most recent weekday — for content sourced from
+    "today's" trading activity (movers, sector heatmap) that still needs a
+    sensible date label when run on a weekend (manual trigger, local testing).
+    """
+    while d.weekday() >= 5:   # Sat/Sun
+        d -= timedelta(days=1)
+    return d
 
 # ── Brand palette (matches C in sec_trend_chart.py) ────────────────────────────
 C = {
@@ -231,6 +242,9 @@ def draw_side_card(img: Image.Image, x: int, y: int, w: int, h: int,
         draw.rounded_rectangle(
             [logo_x, logo_y, logo_x + logo_size, logo_y + logo_size],
             radius=int(logo_size * 0.2), fill=fallback_bg or C["bg"])
+        fnt = font(True, max(12, int(logo_size * 0.32)))
+        draw.text((logo_x + logo_size / 2, logo_y + logo_size / 2), title[:4],
+                   font=fnt, fill=C["white"], anchor="mm")
 
     text_x = logo_x + logo_size + 26
     text_w = x + w - pad - text_x
