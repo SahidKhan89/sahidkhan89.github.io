@@ -31,11 +31,19 @@ def image_url(date_str: str) -> str:
     )
 
 
+SUBTITLES = {
+    "movers":      "Biggest gainers and losers",
+    "most_active": "Highest trading volume",
+    "shorted":     "Stocks with the highest short interest",
+}
+
+
 def build_caption(entry: dict, max_chars: int) -> str:
     title = entry["title"]
-    lines = [f"{title}: {entry['human_date']}"]
+    post_type = entry.get("post_type")
+    lines = [f"{title}: {entry['human_date']}", SUBTITLES.get(post_type, "")]
 
-    if entry.get("post_type") == "movers":
+    if post_type == "movers":
         gainers = entry.get("gainers", [])
         losers  = entry.get("losers", [])
         if gainers:

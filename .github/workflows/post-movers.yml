@@ -2,7 +2,7 @@ name: Post Movers to Social Media
 
 on:
   schedule:
-    - cron: '0 23 * * 1-5'   # weekdays at 23:00 UTC (11pm BST / 10pm GMT in winter)
+    - cron: '0 23 * * 1-5'   # weekdays at 23:00 UTC (12am BST / 11pm GMT in winter) — gives the ~20min data lag time to settle
   workflow_dispatch:
     inputs:
       date:

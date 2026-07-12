@@ -34,7 +34,8 @@ def image_url(date_str: str) -> str:
 
 
 def build_caption(entry: dict, max_chars: int) -> str:
-    lines = [f"Ex-Dividend: {entry['human_date']}"]
+    lines = [f"Ex-Dividend: {entry['human_date']}",
+              "Own these before this date to get the dividend"]
 
     tickers = entry.get("tickers", [])
     if tickers:

@@ -37,7 +37,8 @@ def build_caption(entry: dict, max_chars: int) -> str:
     after  = entry.get("after_close", [])[:3]
     tickers = before + after
 
-    lines = [f"Earnings Calendar: {entry['human_date']}"]
+    lines = [f"Earnings Calendar: {entry['human_date']}",
+              "Companies reporting earnings"]
     if tickers:
         lines.append("")
         lines.append(" ".join(f"#{t}" for t in tickers))

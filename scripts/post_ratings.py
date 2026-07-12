@@ -32,7 +32,8 @@ def image_url(date_str: str) -> str:
 
 
 def build_caption(entry: dict, max_chars: int) -> str:
-    lines = [f"Analyst Ratings: {entry['human_date']}"]
+    lines = [f"Analyst Ratings: {entry['human_date']}",
+              "Latest broker upgrades & downgrades"]
 
     ups   = entry.get("upgrades", [])
     downs = entry.get("downgrades", [])

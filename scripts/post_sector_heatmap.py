@@ -35,7 +35,7 @@ def image_url(date_str: str) -> str:
 
 def build_caption(entry: dict, max_chars: int) -> str:
     date_full = datetime.strptime(entry["date"], "%Y-%m-%d").strftime("%a %d %b %Y")
-    lines = [f"Market Sector: {date_full}", ""]
+    lines = [f"Market Sector: {date_full}", "How each S&P sector performed", ""]
 
     for s in entry.get("sectors", []):
         pct   = s["change_pct"]
