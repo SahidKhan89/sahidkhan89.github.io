@@ -3,6 +3,7 @@ scripts/_post_manifest.json
 scripts/_earnings_calendar_manifest.json
 scripts/_ratings_manifest.json
 scripts/_dividends_manifest.json
+scripts/_sector_heatmap_manifest.json
 
 # OS / Python cruft
 .DS_Store

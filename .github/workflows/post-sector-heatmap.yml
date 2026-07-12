@@ -1,18 +1,17 @@
-name: Post Earnings Charts to Social Media
+name: Post Sector Heatmap to Social Media
 
 on:
   schedule:
-    - cron: '0 14 * * 1-5'   # weekdays at 14:00 UTC (2 pm BST / 1 pm GMT)
-    - cron: '0 22 * * 1-5'   # weekdays at 22:00 UTC (11 pm BST / 10 pm GMT)
+    - cron: '0 21 * * 1-5'   # weekdays at 21:00 UTC (10pm BST / 9pm GMT in winter) — after US market close
   workflow_dispatch:
     inputs:
-      tickers:
-        description: 'Force-post specific tickers (e.g. NVDA,AAPL) — skips EDGAR filing check'
+      date:
+        description: 'Force a specific date label (YYYY-MM-DD) — skips "last market day"'
         required: false
         default: ''
 
 jobs:
-  post-earnings-chart:
+  post-sector-heatmap:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -31,36 +30,35 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r scripts/requirements.txt
 
-      - name: Generate earnings charts
-        run: python scripts/generate_earnings_charts.py
+      - name: Generate sector heatmap card
+        run: python scripts/generate_sector_heatmap_card.py
         env:
-          FORCE_TICKERS: ${{ github.event.inputs.tickers }}
+          FORCE_DATE: ${{ github.event.inputs.date }}
 
-      - name: Commit charts to repo
+      - name: Commit card image
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git rm --cached scripts/_post_manifest.json 2>/dev/null || true
-          git add images/earnings/ .gitignore
-          git diff --staged --quiet || git commit -m "chore: add earnings charts [skip ci]"
+          git add images/sector-heatmap/
+          git diff --staged --quiet || git commit -m "chore: add sector heatmap card [skip ci]"
           git pull --rebase origin main
           git push
 
       - name: Post to social media
-        run: python scripts/post_earnings_charts.py
+        run: python scripts/post_sector_heatmap.py
         env:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           THREADS_USER_ID:      ${{ secrets.THREADS_USER_ID }}
           IG_ACCESS_TOKEN:      ${{ secrets.IG_ACCESS_TOKEN }}
           IG_USER_ID:           ${{ secrets.IG_USER_ID }}
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
-          FB_PAGE_ID:           ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_ID:            ${{ secrets.FB_PAGE_ID }}
           GITHUB_REPOSITORY:    ${{ github.repository }}
           GITHUB_REF_NAME:      ${{ github.ref_name }}
 
-      - name: Commit posted earnings tracking
+      - name: Commit posted tracking
         run: |
-          git add data/posted_earnings.json
-          git diff --staged --quiet || git commit -m "chore: update posted earnings [skip ci]"
+          git add data/posted_sector_heatmap.json
+          git diff --staged --quiet || git commit -m "chore: update posted sector heatmap [skip ci]"
           git pull --rebase origin main
           git push
