@@ -46,15 +46,15 @@ def build_caption(entry: dict, max_chars: int) -> str:
     blurb = ZONE_BLURB.get(entry["zone_label"], "")
     lines = [
         f"VIX Fear Gauge: {date_full}",
-        f"{entry['price']:.2f} ({entry['change_pct']:+.2f}%) — {entry['zone_label'].upper()}",
+        f"{entry['price']:.2f} ({entry['change_pct']:+.2f}%) - {entry['zone_label'].upper()}",
         "",
         blurb,
         "",
         "The VIX (\"fear index\") tracks the market's expectation of S&P 500",
-        "volatility over the next 30 days — the higher it is, the more",
+        "volatility over the next 30 days - the higher it is, the more",
         "turbulence traders expect ahead",
         "",
-        "#VIX #FearGauge #Volatility #StockMarket #Investing",
+        "#VIX #FearGauge #Volatility",
     ]
     result = "\n".join(lines)
     if len(result) > max_chars:
