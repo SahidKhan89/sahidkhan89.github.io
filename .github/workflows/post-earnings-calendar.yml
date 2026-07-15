@@ -2,7 +2,7 @@ name: Post Earnings Calendar to Social Media
 
 on:
   schedule:
-    - cron: '0 7 * * 1-5'    # weekdays at 07:00 UTC (8am BST / 7am GMT) — before US market open
+    - cron: '0 5 * * 1-5'    # weekdays at 05:00 UTC (5am BST / 4am GMT) — before US market open
   workflow_dispatch:
     inputs:
       date:

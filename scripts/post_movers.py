@@ -34,7 +34,6 @@ def image_url(date_str: str) -> str:
 SUBTITLES = {
     "movers":      "Biggest gainers and losers",
     "most_active": "Highest trading volume",
-    "shorted":     "Stocks with the highest short interest",
 }
 
 

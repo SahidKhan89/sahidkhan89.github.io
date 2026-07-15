@@ -2,11 +2,10 @@
 """
 generate_movers_card.py — Render a "today's movers" card image.
 
-Each run randomly picks ONE of three post types:
+Each run randomly picks ONE of two post types:
   - "movers"      — Day Gainers + Day Losers combined (two sections, like the
                      analyst-ratings card's Upgrades/Downgrades layout)
   - "most_active" — single list
-  - "shorted"      — single list (most_shorted_stocks screener)
 
 These are Yahoo Finance predefined screeners computed fresh from that day's
 trading activity — unlike fundamental screeners (P/E, yield, growth), the
@@ -14,7 +13,7 @@ list genuinely changes run to run instead of repeating the same names. Saves
 to images/movers/<date>.png and writes a manifest for the posting step
 (scripts/post_movers.py).
 
-Set FORCE_TYPE=movers|most_active|shorted (or pass --type) to pin a specific
+Set FORCE_TYPE=movers|most_active (or pass --type) to pin a specific
 post type, e.g. for local testing. Set FORCE_DATE=YYYY-MM-DD (or pass --date)
 to label a specific date.
 """
@@ -40,15 +39,15 @@ ROOT        = Path(__file__).parent.parent
 OUTPUT_DIR  = ROOT / "images" / "movers"
 MANIFEST    = Path(__file__).parent / "_movers_manifest.json"
 
-POST_TYPES = ["movers", "most_active", "shorted"]
+POST_TYPES = ["movers", "most_active"]
 
 # NOTE: yfinance's live predefined-screener keys don't match what the backend's
 # /available-screeners route documents — "most_active" is actually "most_actives"
 # (plural), and "trending_tickers" isn't a valid key at all anymore (404).
-# Swapped for "most_shorted_stocks", which is equally dynamic day to day.
+# most_shorted_stocks was dropped from rotation — that screener barely changes
+# day to day, so the same names kept getting reposted.
 SINGLE_LIST_SCREENER = {
     "most_active": ("Most Active", "most_actives"),
-    "shorted":     ("Most Shorted", "most_shorted_stocks"),
 }
 
 COLS              = 3
@@ -57,7 +56,7 @@ MARGIN_X          = 40
 CARD_H_SECTION    = 128  # gainers/losers — smaller since two sections share the canvas
 MAX_ITEMS_SECTION = 9    # 3 rows each
 
-CARD_H_SINGLE     = 160  # most active / most shorted — full canvas, one list
+CARD_H_SINGLE     = 160  # most active — full canvas, one list
 MAX_ITEMS_SINGLE  = 15   # 5 rows
 SINGLE_GAP_Y      = 28   # more vertical breathing room between rows
 

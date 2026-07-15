@@ -10,14 +10,13 @@ on:
         required: false
         default: ''
       type:
-        description: 'Force a specific post type — skips the random 1-of-3 pick'
+        description: 'Force a specific post type — skips the random 1-of-2 pick'
         required: false
         type: choice
         options:
           - ''
           - movers
           - most_active
-          - shorted
 
 jobs:
   post-movers:

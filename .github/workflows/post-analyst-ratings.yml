@@ -2,7 +2,7 @@ name: Post Analyst Rating to Social Media
 
 on:
   schedule:
-    - cron: '0 19 * * 1-5'   # weekdays at 19:00 UTC (~8pm BST / 7pm GMT in winter)
+    - cron: '0 18 * * 1-5'   # weekdays at 18:00 UTC (~6pm BST / 5pm GMT in winter)
   workflow_dispatch:
     inputs:
       date:

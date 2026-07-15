@@ -2,7 +2,7 @@ name: Post Dividends Calendar to Social Media
 
 on:
   schedule:
-    - cron: '0 13 * * 1-5'   # weekdays at 13:00 UTC (~1pm BST / 12pm GMT in winter) — posts the next market day's ex-div date
+    - cron: '0 11 * * 1-5'   # weekdays at 11:00 UTC (~11am BST / 10am GMT in winter) — posts the next market day's ex-div date
   workflow_dispatch:
     inputs:
       date:
