@@ -64,6 +64,57 @@ def post_to_instagram(caption: str, img_url: str) -> str:
     return pd_["id"]
 
 
+def post_to_instagram_reel(caption: str, video_url: str,
+                           poll_interval: int = 5, timeout: int = 300) -> str:
+    """Like post_to_instagram but for Reels — video processing is async, so
+    unlike the image flow this has to poll the container's status_code
+    before it's ready to publish."""
+    token   = os.environ["IG_ACCESS_TOKEN"]
+    user_id = os.environ["IG_USER_ID"]
+
+    media = requests.post(
+        f"https://graph.instagram.com/v23.0/{user_id}/media",
+        json={
+            "media_type":   "REELS",
+            "video_url":    video_url,
+            "caption":      caption,
+            "access_token": token,
+        },
+    )
+    md = media.json()
+    if "error" in md:
+        raise RuntimeError(f"IG reel media: {md['error']['message']}")
+    creation_id = md["id"]
+
+    deadline = time.time() + timeout
+    status = None
+    while time.time() < deadline:
+        time.sleep(poll_interval)
+        check = requests.get(
+            f"https://graph.instagram.com/v23.0/{creation_id}",
+            params={"fields": "status_code,status", "access_token": token},
+        )
+        cd = check.json()
+        if "error" in cd:
+            raise RuntimeError(f"IG reel status: {cd['error']['message']}")
+        status = cd.get("status_code")
+        if status == "FINISHED":
+            break
+        if status in ("ERROR", "EXPIRED"):
+            raise RuntimeError(f"IG reel processing failed: {cd.get('status', status)}")
+    else:
+        raise RuntimeError(f"IG reel processing timed out after {timeout}s (last status: {status})")
+
+    pub = requests.post(
+        f"https://graph.instagram.com/v23.0/{user_id}/media_publish",
+        json={"creation_id": creation_id, "access_token": token},
+    )
+    pd_ = pub.json()
+    if "error" in pd_:
+        raise RuntimeError(f"IG reel publish: {pd_['error']['message']}")
+    return pd_["id"]
+
+
 def post_to_facebook(caption: str, img_url: str) -> str:
     token   = os.environ["FB_PAGE_ACCESS_TOKEN"]
     page_id = os.environ["FB_PAGE_ID"]
