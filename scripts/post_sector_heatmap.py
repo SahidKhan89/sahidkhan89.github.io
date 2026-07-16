@@ -24,12 +24,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from social_post import post_to_threads, post_to_instagram, post_to_instagram_reel, post_to_facebook
 
-ROOT        = Path(__file__).parent.parent
-MANIFEST    = Path(__file__).parent / "_sector_heatmap_manifest.json"
-TRACKING    = Path(__file__).parent.parent / "data" / "posted_sector_heatmap.json"
-MAX_HISTORY = 500
-REPO        = os.environ.get("GITHUB_REPOSITORY", "sahidkhan89/sahidkhan89.github.io")
-BRANCH      = os.environ.get("GITHUB_REF_NAME", "main")
+ROOT          = Path(__file__).parent.parent
+MANIFEST      = Path(__file__).parent / "_sector_heatmap_manifest.json"
+TRACKING      = Path(__file__).parent.parent / "data" / "posted_sector_heatmap.json"
+MAX_HISTORY   = 500
+REPO          = os.environ.get("GITHUB_REPOSITORY", "sahidkhan89/sahidkhan89.github.io")
+BRANCH        = os.environ.get("GITHUB_REF_NAME", "main")
 
 
 def image_url(date_str: str) -> str:

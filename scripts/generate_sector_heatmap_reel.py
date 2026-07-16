@@ -25,7 +25,9 @@ underlying data is always whatever the backend currently has cached.
 """
 
 import argparse
+import json
 import os
+import random
 import subprocess
 import sys
 import tempfile
@@ -38,8 +40,20 @@ sys.path.insert(0, str(Path(__file__).parent))
 import social_style as ss
 import generate_sector_heatmap_card as card
 
-ROOT       = Path(__file__).parent.parent
-OUTPUT_DIR = ROOT / "images" / "sector-heatmap-reel"
+ROOT          = Path(__file__).parent.parent
+OUTPUT_DIR    = ROOT / "images" / "sector-heatmap-reel"
+AUDIO_DIR     = ROOT / "assets" / "audio"
+REEL_MANIFEST = Path(__file__).parent / "_sector_heatmap_reel_manifest.json"
+
+# Background track picked at random each run for variety. Tracks are by
+# Kevin MacLeod (incompetech.com), CC BY 4.0.
+AUDIO_CREDITS = {
+    "tech-live.mp3":     "Tech Live by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
+    "presenterator.mp3": "Presenterator by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
+    "motivator.mp3":     "Motivator by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
+    "news-theme.mp3":    "News Theme by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
+    "news-sting.mp3":    "NewsSting by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
+}
 
 FPS            = 30
 REEL_W, REEL_H = 1080, 1920
@@ -288,14 +302,28 @@ def render_frames(human_date: str, sectors: list, out_dir: Path) -> int:
     return frame_idx
 
 
-def encode_video(frame_dir: Path, out_path: Path, fps: int) -> None:
+def encode_video(frame_dir: Path, out_path: Path, fps: int, n_frames: int) -> str:
+    """Encodes the frames and muxes in a randomly-picked background track,
+    trimmed to the video's own length with a 1s fade-out at the tail.
+    Returns that track's attribution line."""
+    track_name = random.choice(sorted(AUDIO_CREDITS))
+    track_path = AUDIO_DIR / track_name
+    duration   = n_frames / fps
+    fade_start = max(0.0, duration - 1.0)
+
     cmd = [
         "ffmpeg", "-y", "-framerate", str(fps),
         "-i", str(frame_dir / "frame_%05d.png"),
+        "-i", str(track_path),
+        "-t", f"{duration:.3f}",
+        "-af", f"afade=t=out:st={fade_start:.3f}:d=1.0",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "160k",
+        "-shortest",
         str(out_path),
     ]
     subprocess.run(cmd, check=True, capture_output=True)
+    return AUDIO_CREDITS[track_name]
 
 
 def main():
@@ -326,7 +354,11 @@ def main():
         tmp_path = Path(tmp)
         n_frames = render_frames(human_date, sectors, tmp_path)
         print(f"  rendered {n_frames} frames @ {FPS}fps (~{n_frames / FPS:.1f}s)")
-        encode_video(tmp_path, out_path, FPS)
+        audio_credit = encode_video(tmp_path, out_path, FPS, n_frames)
+        print(f"  audio: {audio_credit}")
+
+    REEL_MANIFEST.write_text(json.dumps(
+        {"date": date_str, "audio_credit": audio_credit}, indent=2) + "\n")
 
     try:
         shown_path = out_path.relative_to(ROOT)
