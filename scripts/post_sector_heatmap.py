@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from social_post import post_to_threads, post_to_instagram, post_to_instagram_reel, post_to_facebook
+import generate_sector_heatmap_reel as reel
 
 ROOT          = Path(__file__).parent.parent
 MANIFEST      = Path(__file__).parent / "_sector_heatmap_manifest.json"
@@ -50,19 +51,38 @@ def reel_exists(date_str: str) -> bool:
     return (ROOT / "images" / "sector-heatmap-reel" / f"{date_str}.mp4").exists()
 
 
+HASHTAGS = "#StockMarket #Investing #Stocks #Trading #Finance"
+
+
 def build_caption(entry: dict, max_chars: int) -> str:
     date_full = datetime.strptime(entry["date"], "%Y-%m-%d").strftime("%a %d %b %Y")
-    lines = [f"Market Sector: {date_full}", "How each S&P sector performed", ""]
+    sectors = entry.get("sectors", [])
 
-    for s in entry.get("sectors", []):
+    lines = [f"Market Sector: {date_full}"]
+    if sectors:
+        best  = max(sectors, key=lambda s: s["change_pct"])
+        worst = min(sectors, key=lambda s: s["change_pct"])
+        lines.append(f"🏆 Best: {best['name']} {best['change_pct']:+.2f}%")
+        lines.append(f"📉 Worst: {worst['name']} {worst['change_pct']:+.2f}%")
+    lines.append("")
+
+    for s in sectors:
         pct   = s["change_pct"]
         emoji = "🟢" if pct >= 0 else "🔴"
         sign  = "+" if pct >= 0 else ""
         lines.append(f"{emoji} {s['name']}: {sign}{pct:.2f}%")
 
-    result = "\n".join(lines)
+    lines += ["", "Which sector are you watching? Drop it below 👇"]
+
+    # Hashtags are appended after truncation so a long sector list never eats
+    # into them — they always survive, same pattern as post_earnings_charts.py.
+    body   = "\n".join(lines)
+    result = body + "\n\n" + HASHTAGS
+
     if len(result) > max_chars:
-        result = result[:max_chars - 1] + "…"
+        trim = max_chars - len(HASHTAGS) - len("...\n\n")
+        result = body[:trim] + "...\n\n" + HASHTAGS
+
     return result
 
 
@@ -129,7 +149,12 @@ def main():
     if has_ig:
         try:
             if has_reel:
-                igid = post_to_instagram_reel(ig_caption, vid_url)
+                # Mid-way through the title card's static hold, so the cover
+                # frame is always the readable title, never a blank/fading one.
+                thumb_offset_ms = round(
+                    (reel.TITLE_FADE_FRAMES + reel.TITLE_HOLD_FRAMES / 2) / reel.FPS * 1000
+                )
+                igid = post_to_instagram_reel(ig_caption, vid_url, thumb_offset_ms=thumb_offset_ms)
                 print(f"  ✓ Instagram (reel): {igid}")
             else:
                 igid = post_to_instagram(ig_caption, img_url)

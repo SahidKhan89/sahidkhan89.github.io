@@ -64,22 +64,30 @@ def post_to_instagram(caption: str, img_url: str) -> str:
     return pd_["id"]
 
 
-def post_to_instagram_reel(caption: str, video_url: str,
+def post_to_instagram_reel(caption: str, video_url: str, thumb_offset_ms: int | None = None,
                            poll_interval: int = 5, timeout: int = 300) -> str:
     """Like post_to_instagram but for Reels — video processing is async, so
     unlike the image flow this has to poll the container's status_code
-    before it's ready to publish."""
+    before it's ready to publish.
+
+    `thumb_offset_ms`, if given, pins the grid/thumbnail cover frame to that
+    offset into the video — otherwise IG defaults to grabbing frame 0, which
+    for a reel that opens on a fade-in can land on a near-blank frame."""
     token   = os.environ["IG_ACCESS_TOKEN"]
     user_id = os.environ["IG_USER_ID"]
 
+    payload = {
+        "media_type":   "REELS",
+        "video_url":    video_url,
+        "caption":      caption,
+        "access_token": token,
+    }
+    if thumb_offset_ms is not None:
+        payload["thumb_offset"] = thumb_offset_ms
+
     media = requests.post(
         f"https://graph.instagram.com/v23.0/{user_id}/media",
-        json={
-            "media_type":   "REELS",
-            "video_url":    video_url,
-            "caption":      caption,
-            "access_token": token,
-        },
+        json=payload,
     )
     md = media.json()
     if "error" in md:

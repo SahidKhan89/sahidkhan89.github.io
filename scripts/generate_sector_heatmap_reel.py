@@ -53,6 +53,7 @@ AUDIO_CREDITS = {
     "motivator.mp3":     "Motivator by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
     "news-theme.mp3":    "News Theme by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
     "news-sting.mp3":    "NewsSting by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
+    "cipher.mp3":        "Cipher by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
 }
 
 FPS            = 30
@@ -64,6 +65,9 @@ LEGEND_ZONE    = 58   # 14 pre-gap + 16 bar + 28 label offset, per card._draw_le
 # 42/CELL_ROW_H 74) so the grid fills more of the taller vertical canvas.
 HEADER_H    = 60
 CELL_ROW_H  = 108
+TOP_SAFE_PAD = 90   # extra space above the header — Instagram's own UI chrome
+                    # crowds the very top of a Reel, clipping/hiding a header
+                    # that sits right at y=0 the way the static card's does
 CELL_GAP    = 6
 BLOCK_GAP_Y = 24
 
@@ -77,6 +81,17 @@ CELL_STAGGER    = 4    # frames between each industry cell starting
 HOLD_FRAMES     = 5    # ~0.17s pause before the next sector starts
 END_HOLD_FRAMES = 60   # ~2s holding on the finished grid + legend
 SLIDE_OFFSET    = 34   # px an industry cell slides up from as it fades in
+
+# Title card — plays before the per-sector reveal so a scrolling viewer (and
+# Instagram's auto-picked cover frame, which otherwise lands on a blank or
+# mid-transition frame) sees what the reel is about immediately.
+TITLE_HEADLINE      = "SECTOR HEATMAP"
+TITLE_TAGLINE       = "Winners & losers across every sector"
+TITLE_HEADLINE_SIZE = 88
+TITLE_DATE_SIZE     = 40
+TITLE_TAGLINE_SIZE  = 30
+TITLE_FADE_FRAMES   = 15   # ~0.5s pop-in
+TITLE_HOLD_FRAMES   = 60   # ~2s static hold (readable by a cover-frame grab)
 
 
 def ease_out_cubic(t: float) -> float:
@@ -171,6 +186,32 @@ def _render_cell_overlay(ind, w, h, pct):
     return overlay
 
 
+TITLE_BLOCK_H = (
+    (TITLE_HEADLINE_SIZE + 22) + (TITLE_DATE_SIZE + 26) + (TITLE_TAGLINE_SIZE + 46) + 44
+)  # last term mirrors card._draw_legend's own bar_h(16) + label gap(28)
+
+
+def _render_title_overlay(w: int, human_date: str) -> Image.Image:
+    """Headline + date + tagline + a preview of the red-to-green legend bar,
+    stacked and centered — rendered once, then popped/faded in as a unit."""
+    overlay = Image.new("RGBA", (w + 1, TITLE_BLOCK_H + 1), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    cx = w / 2
+
+    y = 0
+    draw.text((cx, y), TITLE_HEADLINE, font=ss.font(True, TITLE_HEADLINE_SIZE),
+               fill=ss.C["white"], anchor="ma")
+    y += TITLE_HEADLINE_SIZE + 22
+    draw.text((cx, y), human_date, font=ss.font(True, TITLE_DATE_SIZE),
+               fill=ss.C["teal"], anchor="ma")
+    y += TITLE_DATE_SIZE + 26
+    draw.text((cx, y), TITLE_TAGLINE, font=ss.font(False, TITLE_TAGLINE_SIZE),
+               fill=(214, 220, 228), anchor="ma")
+    y += TITLE_TAGLINE_SIZE + 46
+    card._draw_legend(overlay, draw, y)
+    return overlay
+
+
 def _paste_popin(base, overlay, x, y, w, h, t: float) -> None:
     """t in [0,1] — fades in while popping from 0.85x to 1.0x scale, centered
     on the element's own box. Used for sector headers."""
@@ -219,8 +260,9 @@ def render_frames(human_date: str, sectors: list, out_dir: Path) -> int:
 
     # Header/footer never change frame-to-frame — render once, blit every frame.
     header_canvas = Image.new("RGB", (REEL_W, REEL_H), ss.C["bg"])
-    y0 = ss.draw_header(header_canvas, f"Sector Heatmap  ·  {human_date}", ss.load_brand_logo())
-    header_band = header_canvas.crop((0, 0, REEL_W, y0))
+    header_h = ss.draw_header(header_canvas, f"Sector Heatmap  ·  {human_date}", ss.load_brand_logo())
+    header_band = header_canvas.crop((0, 0, REEL_W, header_h))
+    y0 = TOP_SAFE_PAD + header_h
 
     footer_canvas = Image.new("RGB", (REEL_W, REEL_H), ss.C["bg"])
     ss.draw_footer(footer_canvas)
@@ -233,12 +275,28 @@ def render_frames(human_date: str, sectors: list, out_dir: Path) -> int:
 
     def new_frame() -> tuple:
         img = Image.new("RGB", (REEL_W, REEL_H), ss.C["bg"])
-        img.paste(header_band, (0, 0))
+        img.paste(header_band, (0, TOP_SAFE_PAD))
         img.paste(footer_band, (0, footer_top))
         return img, ImageDraw.Draw(img)
 
     frame_idx = 0
     n = len(sectors)
+
+    # Title card — plays first so the reel identifies itself before the
+    # per-sector reveal starts (see TITLE_* constants above).
+    title_overlay = _render_title_overlay(REEL_W, human_date)
+    title_y = y0 + max(0, (available_h - TITLE_BLOCK_H) // 2)
+    for f in range(TITLE_FADE_FRAMES):
+        t = (f + 1) / TITLE_FADE_FRAMES
+        img, draw = new_frame()
+        _paste_popin(img, title_overlay, 0, title_y, REEL_W, TITLE_BLOCK_H, t)
+        img.save(out_dir / f"frame_{frame_idx:05d}.png")
+        frame_idx += 1
+    for _ in range(TITLE_HOLD_FRAMES):
+        img, draw = new_frame()
+        img.paste(title_overlay, (0, title_y), title_overlay)
+        img.save(out_dir / f"frame_{frame_idx:05d}.png")
+        frame_idx += 1
 
     for i, sector in enumerate(sectors):
         x, y, w, h = positions[i]
