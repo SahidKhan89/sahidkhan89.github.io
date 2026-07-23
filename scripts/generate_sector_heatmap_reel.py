@@ -373,12 +373,11 @@ def encode_video(frame_dir: Path, out_path: Path, fps: int, n_frames: int) -> st
     cmd = [
         "ffmpeg", "-y", "-framerate", str(fps),
         "-i", str(frame_dir / "frame_%05d.png"),
-        "-i", str(track_path),
+        "-stream_loop", "-1", "-i", str(track_path),
         "-t", f"{duration:.3f}",
         "-af", f"afade=t=out:st={fade_start:.3f}:d=1.0",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "160k",
-        "-shortest",
         str(out_path),
     ]
     subprocess.run(cmd, check=True, capture_output=True)
