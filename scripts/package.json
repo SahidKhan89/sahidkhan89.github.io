@@ -1,4 +1,7 @@
 {
   "name": "stock-score-social",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.114.0"
+  }
 }

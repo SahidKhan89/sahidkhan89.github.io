@@ -1,0 +1,43 @@
+name: Post CNBC Earnings to Threads
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # every 2 hours
+  workflow_dispatch:
+
+jobs:
+  post-cnbc-threads:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write               # needed to commit the updated tracking file
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/package.json
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: scripts
+
+      - name: Run posting script
+        run: node scripts/post-cnbc-threads.mjs
+        env:
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID:      ${{ secrets.THREADS_USER_ID }}
+
+      - name: Commit updated tracking file
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/posted_cnbc_threads.json
+          git diff --staged --quiet || git commit -m "chore: update posted CNBC threads [skip ci]"
+          git pull --rebase origin main
+          git push

@@ -13,3 +13,6 @@ scripts/_vix_gauge_reel_manifest.json
 .DS_Store
 __pycache__/
 *.pyc
+
+# Node dependencies (installed fresh in CI via `npm install`)
+scripts/node_modules/
