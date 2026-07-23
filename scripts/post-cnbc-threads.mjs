@@ -107,28 +107,23 @@ const TOPICS = [
   ['Investing',   ['investing', 'portfolio', 'dividend', 'yield', 'etf', 'fund']],
 ];
 
+// Threads only renders one hashtag/cashtag as an actual clickable tag per
+// post — anything beyond that just sits as flat, unlinked text. So emit
+// exactly one: the ticker cashtag if the article names a company (more
+// specific and more useful for a stock account), otherwise the top topic tag.
 function generateHashtags(title, description) {
   const lower = (title + ' ' + description).toLowerCase();
   const full  = title + ' ' + description;
 
-  const topicTags = [];
-  for (const [tag, keywords] of TOPICS) {
-    if (keywords.some(kw => lower.includes(kw))) {
-      topicTags.push('#' + tag);
-      if (topicTags.length === 2) break;
-    }
-  }
-
-  const companyTags = [];
   for (const [name, ticker] of COMPANIES) {
-    if (full.includes(name)) {
-      const tag = '$' + ticker;
-      if (!companyTags.includes(tag)) companyTags.push(tag);
-      if (companyTags.length === 1) break;
-    }
+    if (full.includes(name)) return '$' + ticker;
   }
 
-  return [...topicTags, ...companyTags].join(' ');
+  for (const [tag, keywords] of TOPICS) {
+    if (keywords.some(kw => lower.includes(kw))) return '#' + tag;
+  }
+
+  return '';
 }
 
 // ─── LLM rewording ─────────────────────────────────────────────────────────────
@@ -140,11 +135,15 @@ async function rewordArticle(article) {
     model: 'claude-haiku-4-5',
     max_tokens: 300,
     system: [
-      'You write short, original posts for a financial markets Threads account.',
-      'Given a news headline and summary, rewrite the key point in your own words as a single Threads post.',
-      'Do not copy phrases verbatim from the source. Synthesize, do not paraphrase sentence-by-sentence.',
-      'Keep it under 350 characters, factual, no fabricated numbers, no hashtags, no emojis, no quotation marks around the output, no mention of the source outlet.',
-      'Output ONLY the post text — nothing else.',
+      "You post on Threads for Stock Score, a stock market app for everyday retail investors — not a news outlet.",
+      "Given a CNBC headline and summary, tell people what happened and why it matters, like you're texting a friend the headline, not filing a report.",
+      "Lead with the concrete fact — the number, the move, the result — don't warm up with scene-setting.",
+      "Short, punchy sentences. Contractions are fine. Avoid stiff financial-journalism words like \"marking\", \"amid\", \"underscores\", \"bolstering\", \"reflecting\", \"significant\".",
+      "Do not copy phrases verbatim from the source — synthesize in your own words, don't paraphrase sentence-by-sentence.",
+      "Factual only, never invent numbers or details not in the source.",
+      "You may use at most one emoji if it genuinely fits (e.g. 📈📉🚀) — skip it entirely rather than force one.",
+      'No hashtags, no quotation marks around the output, no mention of "CNBC" or "according to".',
+      'Under 320 characters. Output ONLY the post text — nothing else.',
     ].join(' '),
     messages: [
       {
