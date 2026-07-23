@@ -57,11 +57,11 @@ AUDIO_CREDITS = {
 FPS            = 30
 REEL_W, REEL_H = 1080, 1920
 FOOTER_ZONE    = 90    # matches draw_footer's fixed offset from img.height
-TOP_SAFE_PAD   = 450   # keeps the header out of the very top of the frame — both
-                       # the immersive Reel viewer's own UI chrome up there, and
-                       # (more importantly) the profile grid thumbnail, which
-                       # center-crops the 9:16 frame down towards square and
-                       # would otherwise cut the branded header off entirely
+TOP_SAFE_PAD   = 100   # extra space above the header — Instagram's own UI chrome
+                       # crowds the very top of a Reel, clipping/hiding a header
+                       # that sits right at y=0 the way the static card's does.
+                       # Matches the sector heatmap reel's TOP_SAFE_PAD so both
+                       # reels' headers line up at the same height in the grid.
 
 TOP_TITLE_SIZE = 34
 

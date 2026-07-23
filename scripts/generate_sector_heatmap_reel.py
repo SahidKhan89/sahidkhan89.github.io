@@ -64,9 +64,11 @@ LEGEND_ZONE    = 58   # 14 pre-gap + 16 bar + 28 label offset, per card._draw_le
 # 42/CELL_ROW_H 74) so the grid fills more of the taller vertical canvas.
 HEADER_H    = 60
 CELL_ROW_H  = 108
-TOP_SAFE_PAD = 90   # extra space above the header — Instagram's own UI chrome
+TOP_SAFE_PAD = 100  # extra space above the header — Instagram's own UI chrome
                     # crowds the very top of a Reel, clipping/hiding a header
-                    # that sits right at y=0 the way the static card's does
+                    # that sits right at y=0 the way the static card's does.
+                    # Matches the VIX gauge reel's TOP_SAFE_PAD so both reels'
+                    # headers line up at the same height in the grid.
 CELL_GAP    = 6
 BLOCK_GAP_Y = 24
 
