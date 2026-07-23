@@ -3,6 +3,11 @@
 post_vix_gauge.py — Post the generated VIX fear gauge card to Threads,
 Instagram and Facebook.
 
+Instagram posts the needle-sweep reel (scripts/generate_vix_gauge_reel.py's
+output) as a Reel when images/vix-gauge-reel/<date>.mp4 exists, falling back
+to the static image otherwise. Threads and Facebook always use the static
+card — their reel/video publishing flows aren't wired up yet.
+
 Reads the manifest written by generate_vix_gauge_card.py and posts it using
 a raw.githubusercontent.com URL. Dedupes against data/posted_vix_gauge.json
 by date so a re-run on the same day doesn't double-post.
@@ -16,8 +21,10 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from social_post import post_to_threads, post_to_instagram, post_to_facebook
+from social_post import post_to_threads, post_to_instagram, post_to_instagram_reel, post_to_facebook
+import generate_vix_gauge_reel as reel
 
+ROOT        = Path(__file__).parent.parent
 MANIFEST    = Path(__file__).parent / "_vix_gauge_manifest.json"
 TRACKING    = Path(__file__).parent.parent / "data" / "posted_vix_gauge.json"
 MAX_HISTORY = 500
@@ -30,6 +37,17 @@ def image_url(date_str: str) -> str:
         f"https://raw.githubusercontent.com/{REPO}/{BRANCH}"
         f"/images/vix-gauge/{date_str}.png"
     )
+
+
+def video_url(date_str: str) -> str:
+    return (
+        f"https://raw.githubusercontent.com/{REPO}/{BRANCH}"
+        f"/images/vix-gauge-reel/{date_str}.mp4"
+    )
+
+
+def reel_exists(date_str: str) -> bool:
+    return (ROOT / "images" / "vix-gauge-reel" / f"{date_str}.mp4").exists()
 
 
 ZONE_BLURB = {
@@ -93,12 +111,15 @@ def main():
                        os.environ.get("FB_PAGE_ID"))
 
     img_url         = image_url(entry["date"])
+    has_reel        = reel_exists(entry["date"])
+    vid_url         = video_url(entry["date"]) if has_reel else None
     threads_caption = build_caption(entry, 500)
     ig_caption      = build_caption(entry, 2200)
 
     if dry_run:
         print(f"DRY RUN — {entry['date']}")
         print(f"  Image: {img_url}")
+        print(f"  Video: {vid_url if has_reel else '(none — falling back to image for IG)'}")
         print("\n  ── Threads caption (max 500) ──")
         print(threads_caption)
         print("\n  ── Instagram caption (max 2200) ──")
@@ -107,6 +128,8 @@ def main():
 
     print(f"Posting VIX fear gauge for {entry['date']}")
     print(f"  Image: {img_url}")
+    if has_reel:
+        print(f"  Video: {vid_url}")
     success = False
 
     if has_threads:
@@ -119,8 +142,17 @@ def main():
 
     if has_ig:
         try:
-            igid = post_to_instagram(ig_caption, img_url)
-            print(f"  ✓ Instagram: {igid}")
+            if has_reel:
+                # Mid-way through the title card's static hold, so the cover
+                # frame is always the readable title, never a blank/fading one.
+                thumb_offset_ms = round(
+                    (reel.TITLE_FADE_FRAMES + reel.TITLE_HOLD_FRAMES / 2) / reel.FPS * 1000
+                )
+                igid = post_to_instagram_reel(ig_caption, vid_url, thumb_offset_ms=thumb_offset_ms)
+                print(f"  ✓ Instagram (reel): {igid}")
+            else:
+                igid = post_to_instagram(ig_caption, img_url)
+                print(f"  ✓ Instagram: {igid}")
             success = True
         except Exception as e:
             print(f"  ✗ Instagram: {e}")

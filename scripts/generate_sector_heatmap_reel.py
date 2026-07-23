@@ -45,15 +45,14 @@ OUTPUT_DIR    = ROOT / "images" / "sector-heatmap-reel"
 AUDIO_DIR     = ROOT / "assets" / "audio"
 REEL_MANIFEST = Path(__file__).parent / "_sector_heatmap_reel_manifest.json"
 
-# Background track picked at random each run for variety. Tracks are by
-# Kevin MacLeod (incompetech.com), CC BY 4.0.
+# Background track picked at random each run for variety (see assets/audio/).
 AUDIO_CREDITS = {
-    "tech-live.mp3":     "Tech Live by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
-    "presenterator.mp3": "Presenterator by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
-    "motivator.mp3":     "Motivator by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
-    "news-theme.mp3":    "News Theme by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
-    "news-sting.mp3":    "NewsSting by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
-    "cipher.mp3":        "Cipher by Kevin MacLeod (incompetech.com), licensed under CC BY 4.0",
+    "Game Time.mp3":               "Game Time",
+    "Golden Brown.mp3":            "Golden Brown",
+    "Just the Way You Are.mp3":    "Just the Way You Are",
+    "Stupid Song.mp3":             "Stupid Song",
+    "summer on the inside.mp3":    "summer on the inside",
+    "Young Hearts Run Free.mp3":   "Young Hearts Run Free",
 }
 
 FPS            = 30
