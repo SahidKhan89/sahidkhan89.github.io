@@ -107,16 +107,18 @@ const TOPICS = [
   ['Investing',   ['investing', 'portfolio', 'dividend', 'yield', 'etf', 'fund']],
 ];
 
-// Threads only renders one hashtag/cashtag as an actual clickable tag per
-// post — anything beyond that just sits as flat, unlinked text. So emit
-// exactly one: the ticker cashtag if the article names a company (more
-// specific and more useful for a stock account), otherwise the top topic tag.
+// Threads only renders one hashtag as an actual clickable tag per post —
+// anything beyond that just sits as flat, unlinked text, and Threads doesn't
+// support cashtags ($TICKER) as a linkable entity at all (unlike X/Twitter).
+// So emit exactly one hashtag: the ticker as #TICKER if the article names a
+// company (more specific and more useful for a stock account), otherwise the
+// top topic tag.
 function generateHashtags(title, description) {
   const lower = (title + ' ' + description).toLowerCase();
   const full  = title + ' ' + description;
 
   for (const [name, ticker] of COMPANIES) {
-    if (full.includes(name)) return '$' + ticker;
+    if (full.includes(name)) return '#' + ticker.replace('.', '');
   }
 
   for (const [tag, keywords] of TOPICS) {
@@ -140,6 +142,7 @@ async function rewordArticle(article) {
       "Lead with the concrete fact — the number, the move, the result — don't warm up with scene-setting.",
       "Short, punchy sentences. Contractions are fine. Avoid stiff financial-journalism words like \"marking\", \"amid\", \"underscores\", \"bolstering\", \"reflecting\", \"significant\".",
       "Do not copy phrases verbatim from the source — synthesize in your own words, don't paraphrase sentence-by-sentence.",
+      "Every sentence must add a new fact or angle — never restate the same point in different words just to fill space. If there's nothing else worth saying, stop after one sentence.",
       "Factual only, never invent numbers or details not in the source.",
       "You may use at most one emoji if it genuinely fits (e.g. 📈📉🚀) — skip it entirely rather than force one.",
       'No hashtags, no quotation marks around the output, no mention of "CNBC" or "according to".',
