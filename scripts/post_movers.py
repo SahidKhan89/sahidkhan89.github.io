@@ -14,6 +14,8 @@ import os
 import sys
 from pathlib import Path
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).parent))
 from social_post import post_to_threads, post_to_instagram, post_to_facebook
 
@@ -47,20 +49,116 @@ def build_caption(entry: dict, max_chars: int) -> str:
         losers  = entry.get("losers", [])
         if gainers:
             lines.append("")
-            lines.append("🟢 Gainers: " + " ".join(f"#{t}" for t in gainers[:3]))
+            lines.append("🟢 Gainers: " + " ".join(f"#{t['symbol']}" for t in gainers[:3]))
         if losers:
             lines.append("")
-            lines.append("🔴 Losers: " + " ".join(f"#{t}" for t in losers[:3]))
+            lines.append("🔴 Losers: " + " ".join(f"#{t['symbol']}" for t in losers[:3]))
     else:
         tickers = entry.get("tickers", [])
         if tickers:
             lines.append("")
-            lines.append(" ".join(f"#{t}" for t in tickers[:3]))
+            lines.append(" ".join(f"#{t['symbol']}" for t in tickers[:3]))
 
     result = "\n".join(lines)
     if len(result) > max_chars:
         result = result[:max_chars - 1] + "…"
     return result
+
+
+def _change_str(item: dict) -> str:
+    change = item.get("change")
+    return f"{change:+.2f}%" if isinstance(change, (int, float)) else "N/A"
+
+
+def llm_caption(entry: dict, max_chars: int) -> str | None:
+    """Reword today's movers into a fresh intro hook via the Anthropic API,
+    then append the exact ticker list (never LLM-generated). Returns None
+    on any failure so the caller falls back to the static template."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+
+    post_type = entry.get("post_type")
+
+    if post_type == "movers":
+        gainers = entry.get("gainers", [])
+        losers  = entry.get("losers", [])
+        if not gainers and not losers:
+            return None
+
+        facts_lines = [f"Date: {entry['human_date']}"]
+        if gainers:
+            top = max(gainers, key=lambda t: t.get("change") if isinstance(t.get("change"), (int, float)) else float("-inf"))
+            facts_lines.append(f"Top gainer: {top['symbol']} ({top.get('name') or ''}) {_change_str(top)}")
+        if losers:
+            top = min(losers, key=lambda t: t.get("change") if isinstance(t.get("change"), (int, float)) else float("inf"))
+            facts_lines.append(f"Top loser: {top['symbol']} ({top.get('name') or ''}) {_change_str(top)}")
+        facts_lines.append(f"{len(gainers)} gainers, {len(losers)} losers tracked today")
+        facts = "\n".join(facts_lines)
+
+        footer_lines = []
+        if gainers:
+            footer_lines.append("🟢 Gainers: " + " ".join(f"#{t['symbol']}" for t in gainers[:3]))
+        if losers:
+            footer_lines.append("🔴 Losers: " + " ".join(f"#{t['symbol']}" for t in losers[:3]))
+        footer = "\n\n" + "\n".join(footer_lines)
+        topic_desc = "day's biggest stock gainers and losers"
+    else:
+        tickers = entry.get("tickers", [])
+        if not tickers:
+            return None
+        top = tickers[0]
+        facts = (
+            f"Date: {entry['human_date']}\n"
+            f"Highest-volume stock: {top['symbol']} ({top.get('name') or ''}) {_change_str(top)}\n"
+            f"{len(tickers)} high-volume names tracked today"
+        )
+        footer = "\n\n" + " ".join(f"#{t['symbol']}" for t in tickers[:3])
+        topic_desc = "day's most actively traded stocks by volume"
+
+    intro_budget = max_chars - len(footer) - 2
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-haiku-4-5",
+                "max_tokens": 300,
+                "system": (
+                    "You post on Threads/Instagram for Stock Score, a stock market app for "
+                    "everyday retail investors, not a news outlet. Given today's "
+                    f"{topic_desc}, write a short 1-3 sentence hook — like you're texting a "
+                    "friend, not filing a report — that calls out the standout mover or "
+                    "overall pattern. Lead with the concrete fact. Short, punchy sentences, "
+                    "contractions are fine. This text will be followed immediately by a "
+                    "ticker list, so don't just repeat the names with nothing added. Vary "
+                    "your phrasing and structure each time so posts don't read like a "
+                    "template. Factual only, never invent numbers not given to you. You may "
+                    "use at most one emoji if it genuinely fits, skip it entirely rather "
+                    "than force one. No hashtags, no quotation marks around the output. "
+                    f"Under {intro_budget} characters. Output ONLY the hook text, nothing else."
+                ),
+                "messages": [{"role": "user", "content": facts}],
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        intro = next(b["text"] for b in data["content"] if b["type"] == "text").strip()
+        if not intro:
+            return None
+    except Exception as e:
+        print(f"  ✗ LLM caption reword failed, falling back to template: {e}")
+        return None
+
+    if len(intro) > intro_budget:
+        intro = intro[:intro_budget - 1] + "…"
+    return intro + footer
 
 
 def main():
@@ -94,8 +192,12 @@ def main():
                        os.environ.get("FB_PAGE_ID"))
 
     img_url         = image_url(entry["date"])
-    threads_caption = build_caption(entry, 500)
-    ig_caption      = build_caption(entry, 2200)
+
+    # One LLM call reworded intro, shared across Threads/IG/FB captions.
+    # Falls back to the static template on any failure.
+    reworded        = llm_caption(entry, 500)
+    threads_caption = reworded or build_caption(entry, 500)
+    ig_caption      = reworded or build_caption(entry, 2200)
 
     if dry_run:
         print(f"DRY RUN — {entry['date']} ({entry.get('post_type')})")

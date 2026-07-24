@@ -21,6 +21,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).parent))
 from social_post import post_to_threads, post_to_instagram, post_to_instagram_reel, post_to_facebook
 import generate_sector_heatmap_reel as reel
@@ -51,7 +53,17 @@ def reel_exists(date_str: str) -> bool:
     return (ROOT / "images" / "sector-heatmap-reel" / f"{date_str}.mp4").exists()
 
 
-HASHTAGS = "#StockMarket #Investing #Stocks #Trading #Finance"
+HASHTAG_LINE = "#StockMarket"
+
+
+def sector_lines(sectors: list) -> list:
+    lines = []
+    for s in sectors:
+        pct   = s["change_pct"]
+        emoji = "🟢" if pct >= 0 else "🔴"
+        sign  = "+" if pct >= 0 else ""
+        lines.append(f"{emoji} {s['name']}: {sign}{pct:.2f}%")
+    return lines
 
 
 def build_caption(entry: dict, max_chars: int) -> str:
@@ -66,24 +78,90 @@ def build_caption(entry: dict, max_chars: int) -> str:
         lines.append(f"📉 Worst: {worst['name']} {worst['change_pct']:+.2f}%")
     lines.append("")
 
-    for s in sectors:
-        pct   = s["change_pct"]
-        emoji = "🟢" if pct >= 0 else "🔴"
-        sign  = "+" if pct >= 0 else ""
-        lines.append(f"{emoji} {s['name']}: {sign}{pct:.2f}%")
-
+    lines += sector_lines(sectors)
     lines += ["", "Which sector are you watching? Drop it below 👇"]
 
     # Hashtags are appended after truncation so a long sector list never eats
     # into them — they always survive, same pattern as post_earnings_charts.py.
     body   = "\n".join(lines)
-    result = body + "\n\n" + HASHTAGS
+    result = body + "\n\n" + HASHTAG_LINE
 
     if len(result) > max_chars:
-        trim = max_chars - len(HASHTAGS) - len("...\n\n")
-        result = body[:trim] + "...\n\n" + HASHTAGS
+        trim = max_chars - len(HASHTAG_LINE) - len("...\n\n")
+        result = body[:trim] + "...\n\n" + HASHTAG_LINE
 
     return result
+
+
+def llm_caption(entry: dict, max_chars: int) -> str | None:
+    """Reword today's sector story into a fresh intro hook via the Anthropic
+    API, then append the exact per-sector breakdown (never LLM-generated, so
+    the numbers stay guaranteed-accurate) and the fixed CTA/hashtag. Returns
+    None on any failure so the caller falls back to the static template."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    sectors = entry.get("sectors", [])
+    if not api_key or not sectors:
+        return None
+
+    date_full = datetime.strptime(entry["date"], "%Y-%m-%d").strftime("%a %d %b %Y")
+    best  = max(sectors, key=lambda s: s["change_pct"])
+    worst = min(sectors, key=lambda s: s["change_pct"])
+    positive = sum(1 for s in sectors if s["change_pct"] >= 0)
+    facts = (
+        f"Date: {date_full}\n"
+        f"Best sector: {best['name']} {best['change_pct']:+.2f}%\n"
+        f"Worst sector: {worst['name']} {worst['change_pct']:+.2f}%\n"
+        f"Sectors up: {positive}/{len(sectors)}\n"
+        f"Full breakdown: " + ", ".join(f"{s['name']} {s['change_pct']:+.2f}%" for s in sectors)
+    )
+
+    breakdown = "\n".join(sector_lines(sectors))
+    footer = "\n\n" + breakdown + "\n\nWhich sector are you watching? Drop it below 👇" + "\n\n" + HASHTAG_LINE
+    intro_budget = max_chars - len(footer) - 2
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-haiku-4-5",
+                "max_tokens": 300,
+                "system": (
+                    "You post on Threads/Instagram for Stock Score, a stock market app for "
+                    "everyday retail investors, not a news outlet. Given today's S&P 500 "
+                    "sector performance data, write a short 1-3 sentence hook — like you're "
+                    "texting a friend, not filing a report — that calls out the standout "
+                    "story: the biggest mover, a broad rally or selloff, a rotation between "
+                    "sectors, whatever is most notable. Lead with the concrete fact. Short, "
+                    "punchy sentences, contractions are fine. This text will be followed "
+                    "immediately by an itemized sector-by-sector breakdown, so don't list "
+                    "every sector yourself — focus only on the headline story. Vary your "
+                    "phrasing and structure each time so posts don't read like a template. "
+                    "Factual only, never invent numbers not given to you. You may use at "
+                    "most one emoji if it genuinely fits, skip it entirely rather than "
+                    "force one. No hashtags, no quotation marks around the output. Under "
+                    f"{intro_budget} characters. Output ONLY the hook text, nothing else."
+                ),
+                "messages": [{"role": "user", "content": facts}],
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        intro = next(b["text"] for b in data["content"] if b["type"] == "text").strip()
+        if not intro:
+            return None
+    except Exception as e:
+        print(f"  ✗ LLM caption reword failed, falling back to template: {e}")
+        return None
+
+    if len(intro) > intro_budget:
+        intro = intro[:intro_budget - 1] + "…"
+    return intro + footer
 
 
 def main():
@@ -119,8 +197,12 @@ def main():
     img_url         = image_url(entry["date"])
     has_reel        = reel_exists(entry["date"])
     vid_url         = video_url(entry["date"]) if has_reel else None
-    threads_caption = build_caption(entry, 500)
-    ig_caption      = build_caption(entry, 2200)
+
+    # One LLM call reworded intro, shared across Threads/IG/FB captions.
+    # Falls back to the static template on any failure.
+    reworded        = llm_caption(entry, 500)
+    threads_caption = reworded or build_caption(entry, 500)
+    ig_caption      = reworded or build_caption(entry, 2200)
 
     if dry_run:
         print(f"DRY RUN — {entry['date']}")

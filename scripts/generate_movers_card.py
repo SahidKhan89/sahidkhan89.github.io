@@ -97,6 +97,15 @@ def _fmt_lines(item: dict):
     ]
 
 
+def _detail(item: dict) -> dict:
+    return {
+        "symbol": item["symbol"],
+        "name":   item.get("name"),
+        "price":  item.get("price"),
+        "change": item.get("change"),
+    }
+
+
 def _render_item(img, item, cx, cy, w, h):
     symbol = item.get("symbol", "?")
     logo   = load_logo_pil(symbol)
@@ -169,8 +178,8 @@ def main():
         manifest = {
             "date": date_str, "human_date": human_date, "post_type": post_type,
             "title": "Gainers & Losers",
-            "gainers": [s["symbol"] for s in gainers[:MAX_ITEMS_SECTION]],
-            "losers":  [s["symbol"] for s in losers[:MAX_ITEMS_SECTION]],
+            "gainers": [_detail(s) for s in gainers[:MAX_ITEMS_SECTION]],
+            "losers":  [_detail(s) for s in losers[:MAX_ITEMS_SECTION]],
         }
     else:
         title, screener_key = SINGLE_LIST_SCREENER[post_type]
@@ -186,7 +195,7 @@ def main():
         manifest = {
             "date": date_str, "human_date": human_date, "post_type": post_type,
             "title": title,
-            "tickers": [s["symbol"] for s in items],
+            "tickers": [_detail(s) for s in items],
         }
 
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")

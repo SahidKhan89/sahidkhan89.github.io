@@ -133,11 +133,19 @@ def main():
     img.save(out_path)
     print(f"  chart saved → {out_path.relative_to(ROOT)}")
 
+    def _detail(e: dict) -> dict:
+        return {
+            "ticker":        e["ticker"],
+            "analyst":       e.get("analyst"),
+            "pt_current":    e.get("pt_current"),
+            "pt_pct_change": e.get("pt_pct_change"),
+        }
+
     manifest = {
         "date":       date_str,
         "human_date": human_date,
-        "upgrades":   [e["ticker"] for e in upgrades],
-        "downgrades": [e["ticker"] for e in downgrades],
+        "upgrades":   [_detail(e) for e in upgrades],
+        "downgrades": [_detail(e) for e in downgrades],
     }
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
 

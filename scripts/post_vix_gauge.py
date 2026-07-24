@@ -20,6 +20,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).parent))
 from social_post import post_to_threads, post_to_instagram, post_to_instagram_reel, post_to_facebook
 import generate_vix_gauge_reel as reel
@@ -72,11 +74,78 @@ def build_caption(entry: dict, max_chars: int) -> str:
         "volatility over the next 30 days - the higher it is, the more",
         "turbulence traders expect ahead",
         "",
-        "#VIX #FearGauge #Volatility",
+        "#VIX",
     ]
     result = "\n".join(lines)
     if len(result) > max_chars:
         result = result[:max_chars - 1] + "…"
+    return result
+
+
+HASHTAG_LINE = "#VIX"
+
+
+def llm_caption(entry: dict, max_chars: int) -> str | None:
+    """Reword today's VIX reading into fresh copy via the Anthropic API so
+    captions don't read identically every post. Returns None on any failure
+    (missing key, network error, bad response) so the caller falls back to
+    the static template — a post going out with boilerplate text beats no
+    post at all."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+
+    date_full = datetime.strptime(entry["date"], "%Y-%m-%d").strftime("%a %d %b %Y")
+    blurb = ZONE_BLURB.get(entry["zone_label"], "")
+    facts = (
+        f"Date: {date_full}\n"
+        f"VIX level: {entry['price']:.2f}\n"
+        f"Change: {entry['change_pct']:+.2f}%\n"
+        f"Zone: {entry['zone_label']}\n"
+        f"Zone meaning: {blurb}"
+    )
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-haiku-4-5",
+                "max_tokens": 300,
+                "system": (
+                    "You post on Threads/Instagram for Stock Score, a stock market app for "
+                    "everyday retail investors, not a news outlet. Given today's VIX (fear "
+                    "index) reading, write a short caption explaining what it means for "
+                    "traders today, like you're texting a friend, not filing a report. "
+                    "Lead with the concrete number and what zone it's in. Short, punchy "
+                    "sentences, contractions are fine. Avoid stiff financial-journalism "
+                    "words. Vary your phrasing and structure each time so posts don't read "
+                    "like a template. Factual only, never invent numbers not given to you. "
+                    "You may use at most one emoji if it genuinely fits, skip it entirely "
+                    "rather than force one. No hashtags in the body, no quotation marks "
+                    f"around the output. Under {max_chars - len(HASHTAG_LINE) - 4} characters. "
+                    "Output ONLY the caption text, nothing else."
+                ),
+                "messages": [{"role": "user", "content": facts}],
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        text = next(b["text"] for b in data["content"] if b["type"] == "text").strip()
+        if not text:
+            return None
+    except Exception as e:
+        print(f"  ✗ LLM caption reword failed, falling back to template: {e}")
+        return None
+
+    result = f"{text}\n\n{HASHTAG_LINE}"
+    if len(result) > max_chars:
+        result = text[:max_chars - len(HASHTAG_LINE) - 5] + f"…\n\n{HASHTAG_LINE}"
     return result
 
 
@@ -113,8 +182,13 @@ def main():
     img_url         = image_url(entry["date"])
     has_reel        = reel_exists(entry["date"])
     vid_url         = video_url(entry["date"]) if has_reel else None
-    threads_caption = build_caption(entry, 500)
-    ig_caption      = build_caption(entry, 2200)
+
+    # One LLM call reworded caption, shared across Threads/IG/FB so wording
+    # is consistent per post and we don't spend extra API calls per platform.
+    # Falls back to the static template on any failure.
+    reworded        = llm_caption(entry, 500)
+    threads_caption = reworded or build_caption(entry, 500)
+    ig_caption      = reworded or build_caption(entry, 2200)
 
     if dry_run:
         print(f"DRY RUN — {entry['date']}")
