@@ -9,6 +9,7 @@ Set FORCE_TICKERS=NVDA,AAPL to skip the EDGAR check and force specific tickers.
 """
 
 import json
+import math
 import os
 import re
 import sys
@@ -84,14 +85,45 @@ def _fetch_text(url: str) -> str:
 
 
 def _detect_scale(html: str) -> float:
+    """Fallback only, used when there's no prior-quarter revenue to check
+    magnitude against (see fetch_8k_extras). Earnings-release exhibits often
+    mix units across tables (financials in millions, guidance in billions, a
+    per-share footnote in thousands), so a document-wide phrase search isn't
+    reliable enough to use as the primary signal — it previously caused
+    revenue to be parsed 1000x too small whenever any *other* table in the
+    same document happened to say "in thousands"."""
     lower = html.lower()
     if 'in thousands' in lower: return 0.001
     if 'in billions'  in lower: return 1000.0
     return 1.0
 
 
-def fetch_8k_extras(cik: str, accn: str) -> dict:
-    """Parse full quarter financials, EPS, guidance and period end date from an earnings 8-K."""
+def _infer_scale(raw_revenue: float, ref_revenue_usd: float | None, html: str) -> float | None:
+    """Pick the scale factor (raw table units -> millions) that lands closest
+    to the ticker's own last known quarterly revenue, instead of trusting a
+    document-wide unit label. Returns None if no candidate scale lands within
+    3x of the reference — i.e. the extraction is unreliable and should be
+    discarded rather than posted."""
+    if not ref_revenue_usd:
+        return _detect_scale(html)
+
+    ref_millions = ref_revenue_usd / 1e6
+    if ref_millions <= 0 or raw_revenue <= 0:
+        return _detect_scale(html)
+
+    candidates = (0.001, 1.0, 1000.0)
+    best_scale = min(candidates, key=lambda c: abs(math.log(raw_revenue * c / ref_millions)))
+    if abs(math.log(raw_revenue * best_scale / ref_millions)) > math.log(3):
+        return None
+    return best_scale
+
+
+def fetch_8k_extras(cik: str, accn: str, ref_revenue: float | None = None) -> dict:
+    """Parse full quarter financials, EPS, guidance and period end date from
+    an earnings 8-K. `ref_revenue` is the ticker's last known quarterly
+    revenue in raw USD (from SEC companyfacts) — used to sanity-check the
+    scale of numbers scraped from the free-text exhibit table, since the
+    exhibit's own unit labels aren't reliable (see _infer_scale)."""
     accn_nodash = accn.replace('-', '')
     cik_int     = str(int(cik))
     try:
@@ -122,10 +154,10 @@ def fetch_8k_extras(cik: str, accn: str) -> dict:
     except Exception:
         return {}
 
-    scale  = _detect_scale(html)
     parser = _TableParser()
     parser.feed(html)
     result = {}
+    raw    = {}  # unscaled parsed values, scaled once revenue's magnitude is known
 
     # ── Label sets ────────────────────────────────────────────────────────────
     eps_labels = {'diluted earnings per share', 'earnings per common share - diluted',
@@ -159,20 +191,29 @@ def fetch_8k_extras(cik: str, accn: str) -> dict:
                 v = first_num(row, allow_small=True)
                 if v is not None and abs(v) < 1000:
                     result['eps'] = v
-            if 'quarter_revenue' not in result and label in rev_labels:
+            if 'quarter_revenue' not in raw and label in rev_labels:
                 v = first_num(row, allow_small=False)
                 if v is not None:
-                    result['quarter_revenue'] = v * scale
-            if 'quarter_gross_profit' not in result and label in gp_labels:
+                    raw['quarter_revenue'] = v
+            if 'quarter_gross_profit' not in raw and label in gp_labels:
                 v = first_num(row, allow_small=False)
                 if v is not None:
-                    rev = result.get('quarter_revenue', float('inf'))
-                    if abs(v * scale) < abs(rev) * 1.5:
-                        result['quarter_gross_profit'] = v * scale
-            if 'quarter_net_income' not in result and label in ni_labels:
+                    raw['quarter_gross_profit'] = v
+            if 'quarter_net_income' not in raw and label in ni_labels:
                 v = first_num(row, allow_small=False)
                 if v is not None:
-                    result['quarter_net_income'] = v * scale
+                    raw['quarter_net_income'] = v
+
+    if 'quarter_revenue' in raw:
+        scale = _infer_scale(raw['quarter_revenue'], ref_revenue, html)
+        if scale is not None:
+            result['quarter_revenue'] = raw['quarter_revenue'] * scale
+            if 'quarter_gross_profit' in raw:
+                gp = raw['quarter_gross_profit'] * scale
+                if abs(gp) < abs(result['quarter_revenue']) * 1.5:
+                    result['quarter_gross_profit'] = gp
+            if 'quarter_net_income' in raw:
+                result['quarter_net_income'] = raw['quarter_net_income'] * scale
 
     # ── Quarter period end date from table header ──────────────────────────────
     text = re.sub(r'<[^>]+>', ' ', html)
@@ -297,10 +338,12 @@ def generate_chart(ticker: str, cik: str, company: str, out_path: Path) -> list 
         br_logo = load_brand_logo()
 
         _, accn = find_latest_earnings_8k(cik)
-        extras  = fetch_8k_extras(cik, accn) if accn else {}
+        ref_revenue = quarters[-1].get('revenue')
+        extras  = fetch_8k_extras(cik, accn, ref_revenue=ref_revenue) if accn else {}
 
         # Stitch the 8-K quarter into the trend if it isn't in companyfacts yet
         # (common in the 5–40 day window between earnings release and 10-Q filing)
+        stitched = False
         qed = extras.get('quarter_end_date')
         if qed and extras.get('quarter_revenue'):
             existing_keys = {q['key'] for q in quarters}
@@ -316,9 +359,24 @@ def generate_chart(ticker: str, cik: str, company: str, out_path: Path) -> list 
                     'net_income':   _to_usd(extras.get('quarter_net_income')),
                 }
                 quarters = (quarters + [new_q])[-8:]  # keep latest 8
+                stitched = True
                 rev_b = extras['quarter_revenue'] / 1e3
                 print(f"  8-K quarter stitched: {quarter_label(qed).replace(chr(10),' ')} "
                       f"(rev ${rev_b:.1f}B)")
+
+        # check_recent_filing() only means a filing landed recently — it doesn't
+        # mean that filing's numbers are in `quarters` yet. If the 8-K stitch
+        # above didn't happen (extraction failed/was rejected as implausible)
+        # and companyfacts hasn't synced the new quarter either, quarters[-1]
+        # is still last quarter's data. Posting that now, prompted by today's
+        # filing, reads as a fresh chart when it's actually stale — and a few
+        # hours later, once data syncs, the real new quarter posts too,
+        # producing two different charts for the same company in one day.
+        days_stale = (datetime.now(timezone.utc).replace(tzinfo=None) - quarters[-1]['end']).days
+        if not stitched and days_stale > 100:
+            print(f"  recent filing detected but latest usable quarter is still "
+                  f"{days_stale}d old — data hasn't synced yet, skipping until next run")
+            return None
 
         # Derive guidance label from the latest quarter end (calendar-consistent)
         if extras.get('guidance_rev'):
