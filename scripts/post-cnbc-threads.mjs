@@ -18,7 +18,7 @@ async function withRetry(label, fn, attempts = 3, delayMs = 4000) {
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const CNBC_RSS_URL = process.env.CNBC_RSS_URL
-  || 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839135';
+  || 'https://www.cnbc.com/id/100003114/device/rss/rss.html'; // US Top News and Analysis — broad market/business hot topics, not earnings-only
 const TRACKING    = new URL('../data/posted_cnbc_threads.json', import.meta.url).pathname;
 const MAX_HISTORY = 500;
 const CAPTION_LIMIT = 500; // Threads character limit
@@ -132,6 +132,28 @@ function generateHashtags(title, description) {
 
 const anthropic = new Anthropic();
 
+// Now that the feed is broad top-news rather than earnings-only, articles can
+// legitimately sit for a while before this run picks them up (LIFO only
+// guarantees "newest available", not "just happened") — an item can be
+// several hours or close to the 72h MAX_AGE cutoff old. Without an explicit
+// age cue the model has no way to know that and defaults to immediacy
+// language ("just", "breaking"), which reads as wrong/stale-sounding once
+// posted. Give it the actual elapsed time and an instruction tier so old-but-
+// still-postable news gets retrospective framing instead.
+function freshnessInstruction(pubDate) {
+  if (!pubDate) return 'Publish time unknown — avoid words that assert exact timing either way ("just", "today", "breaking").';
+
+  const hoursAgo = (Date.now() - pubDate.getTime()) / 3_600_000;
+  if (hoursAgo <= 3) {
+    return `This was reported about ${Math.round(hoursAgo)} hour(s) ago — recent enough that "just" / "breaking" framing is accurate if it fits.`;
+  }
+  if (hoursAgo <= 24) {
+    return `This was reported about ${Math.round(hoursAgo)} hour(s) ago (earlier today/yesterday) — do NOT say "just happened" or "breaking". Neutral present-tense framing ("X is doing Y") is fine, but don't imply it just occurred.`;
+  }
+  const daysAgo = Math.round(hoursAgo / 24);
+  return `This was reported about ${daysAgo} day(s) ago — this is OLD news, not breaking. Do NOT use "just", "breaking", "moments ago", or "today". Use clearly retrospective framing instead (e.g. "earlier this week", "X reported that...", past tense throughout).`;
+}
+
 async function rewordArticle(article) {
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
@@ -146,12 +168,13 @@ async function rewordArticle(article) {
       "Factual only, never invent numbers or details not in the source.",
       "You may use at most one emoji if it genuinely fits (e.g. 📈📉🚀) — skip it entirely rather than force one.",
       'No hashtags, no quotation marks around the output, no mention of "CNBC" or "according to".',
+      "Match your tense and immediacy language to how old the story actually is — see the timing note below.",
       'Under 320 characters. Output ONLY the post text — nothing else.',
     ].join(' '),
     messages: [
       {
         role: 'user',
-        content: `Headline: ${article.title}\n\nSummary: ${article.description}`,
+        content: `Headline: ${article.title}\n\nSummary: ${article.description}\n\nTiming: ${freshnessInstruction(article.pubDate)}`,
       },
     ],
   });

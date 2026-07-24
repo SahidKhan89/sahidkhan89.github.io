@@ -1,4 +1,4 @@
-name: Post CNBC Earnings to Threads
+name: Post CNBC Top News to Threads
 
 on:
   schedule:
