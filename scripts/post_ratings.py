@@ -82,7 +82,6 @@ def llm_caption(entry: dict, max_chars: int) -> str | None:
     if downs:
         top = min(downs, key=lambda t: t.get("pt_pct_change") if isinstance(t.get("pt_pct_change"), (int, float)) else float("inf"))
         facts_lines.append(f"Notable downgrade: {top['ticker']} by {top.get('analyst') or 'a broker'}{_pt_str(top)}")
-    facts_lines.append(f"{len(ups)} upgrades, {len(downs)} downgrades tracked today")
     facts = "\n".join(facts_lines)
 
     footer_lines = []
@@ -109,12 +108,13 @@ def llm_caption(entry: dict, max_chars: int) -> str | None:
                     "everyday retail investors, not a news outlet. Given today's analyst "
                     "upgrade/downgrade actions from Wall Street brokers, write a short 1-3 "
                     "sentence hook — like you're texting a friend, not filing a report — "
-                    "that calls out the standout action: a notable price target change, a "
-                    "high-conviction call, or the overall tilt (more upgrades than "
-                    "downgrades or vice versa). Lead with the concrete fact. Short, punchy "
+                    "that calls out the standout action: a notable price target change or a "
+                    "high-conviction call. Lead with the concrete fact. Short, punchy "
                     "sentences, contractions are fine. This text will be followed "
                     "immediately by the full ticker list, so don't just repeat the names "
-                    "with nothing added. Vary your phrasing and structure each time so "
+                    "with nothing added. Never comment on the number of upgrades vs "
+                    "downgrades or call it a tilt/lean — that count doesn't reflect the "
+                    "full picture. Vary your phrasing and structure each time so "
                     "posts don't read like a template. Factual only, never invent numbers "
                     "not given to you. You may use at most one emoji if it genuinely fits, "
                     "skip it entirely rather than force one. No hashtags, no quotation "

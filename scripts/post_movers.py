@@ -93,7 +93,6 @@ def llm_caption(entry: dict, max_chars: int) -> str | None:
         if losers:
             top = min(losers, key=lambda t: t.get("change") if isinstance(t.get("change"), (int, float)) else float("inf"))
             facts_lines.append(f"Top loser: {top['symbol']} ({top.get('name') or ''}) {_change_str(top)}")
-        facts_lines.append(f"{len(gainers)} gainers, {len(losers)} losers tracked today")
         facts = "\n".join(facts_lines)
 
         footer_lines = []
@@ -133,10 +132,13 @@ def llm_caption(entry: dict, max_chars: int) -> str | None:
                     "You post on Threads/Instagram for Stock Score, a stock market app for "
                     "everyday retail investors, not a news outlet. Given today's "
                     f"{topic_desc}, write a short 1-3 sentence hook — like you're texting a "
-                    "friend, not filing a report — that calls out the standout mover or "
-                    "overall pattern. Lead with the concrete fact. Short, punchy sentences, "
+                    "friend, not filing a report — that calls out the standout mover(s). "
+                    "Lead with the concrete fact. Short, punchy sentences, "
                     "contractions are fine. This text will be followed immediately by a "
-                    "ticker list, so don't just repeat the names with nothing added. Vary "
+                    "ticker list, so don't just repeat the names with nothing added. Never "
+                    "comment on the number of gainers vs losers or call it a split/tilt/rally — "
+                    "the list is capped to a fixed number of names for the image, it's not a "
+                    "market-breadth count. Vary "
                     "your phrasing and structure each time so posts don't read like a "
                     "template. Factual only, never invent numbers not given to you. You may "
                     "use at most one emoji if it genuinely fits, skip it entirely rather "
