@@ -13,6 +13,8 @@ import sys
 import time
 from pathlib import Path
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).parent))
 from social_post import post_to_threads, post_to_instagram, post_to_facebook
 
@@ -68,6 +70,78 @@ def posting_key(entry: dict) -> str:
     return f"{entry['ticker']}_{entry['label']}"
 
 
+def _yoy_str(pct) -> str:
+    return f" ({pct:+.1f}% YoY)" if isinstance(pct, (int, float)) else ""
+
+
+def llm_caption(d: dict, max_chars: int) -> str | None:
+    """Reword this ticker's quarterly earnings into a fresh intro hook via
+    the Anthropic API, then append the ticker hashtag (never LLM-generated).
+    Returns None on any failure so the caller falls back to the static
+    template."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+
+    facts_lines = [f"Ticker: {d['ticker']} ({d.get('company') or ''})",
+                   f"Quarter: {d.get('label', '').replace(chr(10), ' ')}"]
+    if d.get("revenue") and d["revenue"] != "N/A":
+        facts_lines.append(f"Revenue: {d['revenue']}{_yoy_str(d.get('rev_yoy_pct'))}")
+    if d.get("net_income") and d["net_income"] != "N/A":
+        facts_lines.append(f"Net Income: {d['net_income']}{_yoy_str(d.get('ni_yoy_pct'))}")
+    if d.get("nm_pct") is not None:
+        facts_lines.append(f"Net Margin: {d['nm_pct']:.1f}%")
+    if d.get("gm_pct") is not None:
+        facts_lines.append(f"Gross Margin: {d['gm_pct']:.1f}%")
+    facts = "\n".join(facts_lines)
+
+    footer = f"\n\n#{d['ticker']}"
+    intro_budget = max_chars - len(footer) - 2
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-haiku-4-5",
+                "max_tokens": 300,
+                "system": (
+                    "You post on Threads/Instagram for Stock Score, a stock market app for "
+                    "everyday retail investors, not a news outlet. Given this company's "
+                    "just-reported quarterly revenue, net income and margins, write a short "
+                    "1-2 sentence hook — like you're texting a friend, not filing a report — "
+                    "that leads with the standout figure (usually revenue or net income YoY "
+                    "change). Short, punchy sentences, contractions are fine. This text will "
+                    "be followed immediately by the ticker hashtag, so don't just restate the "
+                    "ticker with nothing added. Factual only, never invent numbers not given "
+                    "to you. Vary your phrasing and structure each time so posts don't read "
+                    "like a template. You may use at most one emoji if it genuinely fits, "
+                    "skip it entirely rather than force one. No hashtags, no quotation marks "
+                    f"around the output. Under {intro_budget} characters. Output ONLY the "
+                    "hook text, nothing else."
+                ),
+                "messages": [{"role": "user", "content": facts}],
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        intro = next(b["text"] for b in data["content"] if b["type"] == "text").strip()
+        if not intro:
+            return None
+    except Exception as e:
+        print(f"  ✗ LLM caption reword failed, falling back to template: {e}")
+        return None
+
+    if len(intro) > intro_budget:
+        intro = intro[:intro_budget - 1] + "…"
+    return intro + footer
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true",
@@ -113,8 +187,11 @@ def main():
         ticker  = entry["ticker"]
         img_url = image_url(ticker)
 
-        threads_caption = build_caption(entry, 500)
-        ig_caption      = build_caption(entry, 2200)
+        # One LLM call reworded intro, shared across Threads/IG/FB captions.
+        # Falls back to the static template on any failure.
+        reworded        = llm_caption(entry, 500)
+        threads_caption = reworded or build_caption(entry, 500)
+        ig_caption      = reworded or build_caption(entry, 2200)
 
         if dry_run:
             print(f"\n{'─'*60}")
