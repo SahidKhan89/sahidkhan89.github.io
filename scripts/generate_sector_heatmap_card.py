@@ -44,11 +44,11 @@ CELL_GAP     = 4
 BLOCK_GAP_Y  = 16
 
 NEUTRAL          = (70, 70, 70)   # true grey "no signal" — distinct from the brand navy
-HEAT_CAP         = 2.0            # |% change| at which color saturation maxes out —
-                                   # most sector/industry moves are under 2%, so this
-                                   # reaches full color well before the old 3.0 cap
+HEAT_CAP         = 1.6            # |% change| at which color saturation maxes out —
+                                   # lower than the raw data range so most cells read
+                                   # as clearly colored rather than muddy grey-green
 BLEND_MAX_CELL   = 1.0            # cells hit pure green/red at the cap, no grey tint
-BLEND_MAX_HEADER = 0.55
+BLEND_MAX_HEADER = 0.65
 
 LEGEND_STOPS = [-3, -2, -1, 0, 1, 2, 3]
 LEGEND_LABELS = ["≤-3%", "-2%", "-1%", "0%", "+1%", "+2%", "≥+3%"]
