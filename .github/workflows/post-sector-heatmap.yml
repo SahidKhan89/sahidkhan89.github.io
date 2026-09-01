@@ -2,7 +2,9 @@ name: Post Sector Heatmap to Social Media
 
 on:
   schedule:
-    - cron: '0 21 * * 1-5'   # weekdays at 21:00 UTC (10pm BST / 9pm GMT in winter) — after US market close
+    - cron: '27 21 * * 1-5'   # weekdays at 21:27 UTC (10:27pm BST / 9:27pm GMT in winter) — after US
+                               # market close, offset off :00 to avoid GitHub's on-the-hour schedule
+                               # congestion
   workflow_dispatch:
     inputs:
       date:

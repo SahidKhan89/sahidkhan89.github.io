@@ -2,8 +2,10 @@ name: Post Earnings Charts to Social Media
 
 on:
   schedule:
-    - cron: '0 14 * * 1-5'   # weekdays at 14:00 UTC (2 pm BST / 1 pm GMT)
-    - cron: '0 22 * * 1-5'   # weekdays at 22:00 UTC (11 pm BST / 10 pm GMT)
+    - cron: '41 14 * * 1-5'   # weekdays at 14:41 UTC (2:41pm BST / 1:41pm GMT) — offset off :00 to
+                               # avoid GitHub's on-the-hour schedule congestion
+    - cron: '51 22 * * 1-5'   # weekdays at 22:51 UTC (11:51pm BST / 10:51pm GMT) — offset off :00
+                               # to avoid GitHub's on-the-hour schedule congestion
   workflow_dispatch:
     inputs:
       tickers:

@@ -2,7 +2,9 @@ name: Post VIX Fear Gauge to Social Media
 
 on:
   schedule:
-    - cron: '0 14 * * 1,3,5'   # Mon/Wed/Fri at 14:00 UTC (3pm BST / 2pm GMT in winter) — mid US trading session
+    - cron: '47 14 * * 1,3,5'   # Mon/Wed/Fri at 14:47 UTC (3:47pm BST / 2:47pm GMT in winter) — mid
+                                 # US trading session, offset off :00 to avoid GitHub's on-the-hour
+                                 # schedule congestion
   workflow_dispatch:
     inputs:
       date:

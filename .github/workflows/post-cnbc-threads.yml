@@ -2,7 +2,9 @@ name: Post CNBC Top News to Threads
 
 on:
   schedule:
-    - cron: '0 */2 * * *'   # every 2 hours
+    - cron: '17 */2 * * *'   # every 2 hours, offset off :00 — GitHub Actions' schedule
+                              # event is most congested/likely-to-be-delayed-or-skipped
+                              # right at the top of the hour
   workflow_dispatch:
 
 jobs:
