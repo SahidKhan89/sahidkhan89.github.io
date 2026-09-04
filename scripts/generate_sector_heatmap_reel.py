@@ -53,6 +53,9 @@ AUDIO_CREDITS = {
     "Stupid Song.mp3":             "Stupid Song",
     "summer on the inside.mp3":    "summer on the inside",
     "Young Hearts Run Free.mp3":   "Young Hearts Run Free",
+    "Delamourr.mp3":               "Delamourr",
+    "Krimsonn.mp3":                "Krimsonn",
+    "leveluploc.mp3":              "leveluploc",
 }
 
 FPS            = 30
