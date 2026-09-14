@@ -77,7 +77,7 @@ def fetch_dividends(date_str_compact: str) -> list:
 
 def render_card(human_date: str, dividends: list):
     img = ss.new_canvas()   # fixed 1080x1350 — same size as every other card type
-    y = ss.draw_header(img, f"Ex-Dividend  ·  {human_date}", ss.load_brand_logo())
+    y = ss.draw_header(img, f"Ex-Dividend  ·  {human_date}")
 
     y += 32
     card_w = ss.grid_card_width(COLS, margin_x=MARGIN_X)
@@ -102,7 +102,7 @@ def render_card(human_date: str, dividends: list):
     else:
         y = ss.draw_empty_note(img, MARGIN_X, y, "None scheduled")
 
-    ss.draw_footer(img)
+    ss.draw_footer(img, ss.load_brand_logo())
     return img, items
 
 

@@ -176,7 +176,7 @@ def _draw_legend(img, draw, y):
 def render_card(human_date: str, sectors: list):
     img  = ss.new_canvas()
     draw = ImageDraw.Draw(img)
-    y0   = ss.draw_header(img, f"Sector Heatmap  ·  {human_date}", ss.load_brand_logo())
+    y0   = ss.draw_header(img, f"Sector Heatmap  ·  {human_date}")
     y0  += 30
 
     outer_col_w = (ss.CW - 2 * OUTER_MARGIN - (OUTER_COLS - 1) * OUTER_GAP) / OUTER_COLS
@@ -194,7 +194,7 @@ def render_card(human_date: str, sectors: list):
     content_bottom = y0 + max(col_heights)
     legend_bottom  = _draw_legend(img, draw, content_bottom + 14)
 
-    ss.draw_footer(img)
+    ss.draw_footer(img, ss.load_brand_logo())
     return img
 
 

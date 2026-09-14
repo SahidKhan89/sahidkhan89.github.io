@@ -23,13 +23,13 @@ def last_market_day(d):
         d -= timedelta(days=1)
     return d
 
-# ── Brand palette (matches C in sec_trend_chart.py) ────────────────────────────
+# ── Brand palette (matches C in sec_trend_chart.py, and the Flutter app's
+# widgets/share_card_theme.dart / *_share_page.dart share-card redesign) ───────
 C = {
-    "bg":    (7,   16,  31),   # #07101f
+    "bg":    (15,  23,  42),   # #0F172A — ShareCardTheme.scaffoldBackground
+    "bg2":   (30,  41,  59),   # #1E293B — gradient bottom-right stop
     "card":  (13,  24,  41),   # #0d1829
-    "hdr_l": (20,  209, 195),  # #14d1c3
-    "hdr_r": (0,   151, 167),  # #0097a7
-    "teal":  (20,  209, 195),  # #14d1c3
+    "teal":  (0,   210, 190),  # #00D2BE — eyebrow-label accent
     "green": (61,  224, 122),  # #3de07a
     "red":   (255, 77,  109),  # #ff4d6d
     "amber": (255, 179, 71),   # #ffb347
@@ -39,7 +39,6 @@ C = {
 }
 
 CW, CH = 1080, 1350
-HDR_H  = 170
 
 ROOT     = Path(__file__).parent.parent
 LOGO_DIR = ROOT / "logos"
@@ -88,6 +87,31 @@ def _gradient(width: int, height: int, left_rgb, right_rgb) -> Image.Image:
             int(lb + (rb - lb) * t),
         ))
     return img
+
+
+def _diagonal_gradient(width: int, height: int, tl_rgb, br_rgb) -> Image.Image:
+    """Cheap top-left -> bottom-right gradient: a 2x2 corner swatch upscaled
+    with bilinear resampling, which is smooth enough for a subtle page
+    background without a per-pixel Python loop over a 1080x1350 canvas."""
+    mid = tuple((a + b) // 2 for a, b in zip(tl_rgb, br_rgb))
+    small = Image.new("RGB", (2, 2))
+    small.putpixel((0, 0), tl_rgb)
+    small.putpixel((1, 1), br_rgb)
+    small.putpixel((1, 0), mid)
+    small.putpixel((0, 1), mid)
+    return small.resize((width, height), Image.BILINEAR)
+
+
+def _draw_tracked_text(draw: ImageDraw.ImageDraw, xy, text: str, fnt, fill,
+                        tracking: int = 2) -> int:
+    """Draws text with extra letter-spacing (PIL has no native tracking) —
+    used for the header's eyebrow label, matching the app's
+    `letterSpacing: 1.2` caps style. Returns the x-coordinate after the text."""
+    x, y = xy
+    for ch in text:
+        draw.text((x, y), ch, font=fnt, fill=fill)
+        x += draw.textbbox((0, 0), ch, font=fnt)[2] + tracking
+    return x
 
 
 def _rounded_mask(w: int, h: int, radius: int) -> Image.Image:
@@ -152,45 +176,81 @@ def load_brand_logo(size: int = 108) -> Image.Image | None:
 # ── Header / footer ────────────────────────────────────────────────────────────
 
 def new_canvas() -> Image.Image:
-    """Fixed 1080x1350 (4:5) — Instagram's ideal portrait ratio. Every card
-    type renders at this exact size so posts stay visually consistent.
+    """Fixed 1080x1350 (4:5) — inside Instagram's 3:4-max portrait ratio.
+    Every card type renders at this exact size so posts stay visually
+    consistent. Subtle top-left -> bottom-right gradient background, matching
+    widgets/share_card_theme.dart's ShareCardTheme.backgroundDecoration.
     """
-    return Image.new("RGB", (CW, CH), C["bg"])
+    return _diagonal_gradient(CW, CH, C["bg"], C["bg2"])
 
 
-HEADER_MARGIN = 24
-HEADER_RADIUS = 24
+HEADER_MARGIN     = 40   # matches the card generators' own content margin (~40px)
+EYEBROW_SIZE      = 26
+EYEBROW_TRACKING  = 3
+DATE_SIZE         = 32
+DATE_COLOR        = (183, 185, 191)  # ~white70 blended over C["bg"]
+HEADER_GAP        = 18   # gap below the header before card content starts
 
 
-def draw_header(img: Image.Image, subtitle: str, brand_logo: Image.Image | None = None) -> int:
-    """Floating rounded card header. Returns the y-coordinate below it."""
-    m      = HEADER_MARGIN
-    hdr_w  = CW - 2 * m
-    header = _gradient(hdr_w, HDR_H, C["hdr_l"], C["hdr_r"]).convert("RGBA")
-    header.putalpha(_rounded_mask(hdr_w, HDR_H, HEADER_RADIUS))
-    img.paste(header, (m, m), header)
+def draw_header(img: Image.Image, subtitle: str) -> int:
+    """Minimal eyebrow-label header: a small tracked-caps teal label (the
+    post type) with an optional date line below in muted white. Replaces the
+    old bold floating 'StockScore.co.uk' banner card — the brand wordmark now
+    lives in the footer instead (see draw_footer). Matches the in-app
+    share-page redesign (stock_score/lib/*_share_page.dart's
+    _buildDateHeader/_buildTitleSection/_buildCompanySection).
 
+    `subtitle` may be "Label · Date" (split into the two lines) or a bare
+    label with no date line.  Returns the y-coordinate below the header.
+    """
     draw = ImageDraw.Draw(img)
-    draw.text((m + 28, m + 34), "StockScore.co.uk", font=font(True, 46), fill=C["white"])
-    draw.text((m + 28, m + 96), subtitle, font=font(False, 25), fill=(224, 255, 250))
-    if brand_logo is not None:
-        lx = CW - m - 28 - brand_logo.width
-        ly = m + (HDR_H - brand_logo.height) // 2
-        img.paste(brand_logo, (lx, ly), brand_logo)
+    m = HEADER_MARGIN
 
-    return m + HDR_H + m
+    if "·" in subtitle:
+        label, date_text = (p.strip() for p in subtitle.split("·", 1))
+    else:
+        label, date_text = subtitle.strip(), None
+
+    y = m
+    _draw_tracked_text(draw, (m, y), label.upper(), font(True, EYEBROW_SIZE),
+                        C["teal"], tracking=EYEBROW_TRACKING)
+    y += EYEBROW_SIZE + 14
+
+    if date_text:
+        draw.text((m, y), date_text, font=font(True, DATE_SIZE), fill=DATE_COLOR)
+        y += DATE_SIZE + 6
+
+    return y + HEADER_GAP
 
 
 # Same footer on every card type — matches the in-app share pages exactly.
-FOOTER_TEXT = "@StockScoreUK - daily market insights"
+FOOTER_TEXT = "StockScore.co.uk"
 
 
-def draw_footer(img: Image.Image, source_text: str = FOOTER_TEXT) -> None:
+def draw_footer(img: Image.Image, brand_logo: Image.Image | None = None,
+                 source_text: str = FOOTER_TEXT) -> None:
+    """Minimal centered footer: small logo + site name, no social handle (a
+    handle only resolves on the platform it's posted to, whereas the site
+    works wherever the image ends up) — matches
+    widgets/share_card_theme.dart's ShareCardTheme.footer.
+    """
     draw = ImageDraw.Draw(img)
-    y = img.height - 46
-    draw.line([(40, y - 18), (CW - 40, y - 18)], fill=C["div"], width=2)
-    draw.text((CW / 2, y), source_text, font=font(False, 22), fill=C["grey"],
-               anchor="mm")
+    fnt  = font(True, 24)
+    logo_size = 36
+    gap = 14
+
+    text_w  = draw.textbbox((0, 0), source_text, font=fnt)[2]
+    total_w = text_w + (logo_size + gap if brand_logo is not None else 0)
+
+    cy = img.height - 46
+    x  = (img.width - total_w) / 2
+
+    if brand_logo is not None:
+        lg = brand_logo.resize((logo_size, logo_size), Image.LANCZOS)
+        img.paste(lg, (int(x), int(cy - logo_size / 2)), lg)
+        x += logo_size + gap
+
+    draw.text((x, cy), source_text, font=fnt, fill=(207, 209, 214), anchor="lm")
 
 
 # ── Section header (e.g. "Before Open", "Upgrades") ────────────────────────────

@@ -264,12 +264,12 @@ def render_frames(human_date: str, sectors: list, out_dir: Path) -> int:
 
     # Header/footer never change frame-to-frame — render once, blit every frame.
     header_canvas = Image.new("RGB", (REEL_W, REEL_H), ss.C["bg"])
-    header_h = ss.draw_header(header_canvas, f"Sector Heatmap  ·  {human_date}", ss.load_brand_logo())
+    header_h = ss.draw_header(header_canvas, f"Sector Heatmap  ·  {human_date}")
     header_band = header_canvas.crop((0, 0, REEL_W, header_h))
     y0 = TOP_SAFE_PAD + header_h
 
     footer_canvas = Image.new("RGB", (REEL_W, REEL_H), ss.C["bg"])
-    ss.draw_footer(footer_canvas)
+    ss.draw_footer(footer_canvas, ss.load_brand_logo())
     footer_top = REEL_H - FOOTER_ZONE
     footer_band = footer_canvas.crop((0, footer_top, REEL_W, REEL_H))
 

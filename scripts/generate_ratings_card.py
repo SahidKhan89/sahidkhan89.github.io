@@ -95,14 +95,14 @@ def _render_section(img, x, y, label, color, entries, max_items):
 
 def render_card(human_date: str, upgrades: list, downgrades: list):
     img = ss.new_canvas()   # fixed 1080x1350 — same size as every other card type
-    y = ss.draw_header(img, f"Analyst Ratings  ·  {human_date}", ss.load_brand_logo())
+    y = ss.draw_header(img, f"Analyst Ratings  ·  {human_date}")
 
     y += 32
     y = _render_section(img, MARGIN_X, y, "UPGRADES", ss.C["green"], upgrades, MAX_UPGRADES)
     y += 30
     y = _render_section(img, MARGIN_X, y, "DOWNGRADES", ss.C["red"], downgrades, MAX_DOWNGRADES)
 
-    ss.draw_footer(img)
+    ss.draw_footer(img, ss.load_brand_logo())
     return img
 
 

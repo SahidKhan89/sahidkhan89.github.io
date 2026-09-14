@@ -21,19 +21,16 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 import matplotlib.ticker as mticker
 from matplotlib.patches import FancyBboxPatch
 from matplotlib.lines import Line2D
 from PIL import Image, ImageDraw
 
-# ── Brand palette ──────────────────────────────────────────────────────────────
+# ── Brand palette (matches C in social_style.py) ────────────────────────────────
 C = {
-    "bg":      "#07101f",
+    "bg":      "#0F172A",
     "card":    "#0d1829",
-    "hdr_l":   "#14d1c3",
-    "hdr_r":   "#0097a7",
-    "teal":    "#14d1c3",
+    "teal":    "#00D2BE",
     "green":   "#3de07a",
     "red":     "#ff4d6d",
     "amber":   "#ffb347",
@@ -237,12 +234,6 @@ def load_brand_logo():
 
 # ── Drawing helpers ────────────────────────────────────────────────────────────
 
-def hdr_grad(ax):
-    cmap = mcolors.LinearSegmentedColormap.from_list("h", [C["hdr_l"], C["hdr_r"]])
-    ax.imshow(np.linspace(0, 1, 256).reshape(1, -1),
-              aspect="auto", extent=[0, 1, 0, 1], cmap=cmap, zorder=0)
-
-
 def pill(ax, x, y, w, h, color, alpha=1.0, zorder=3, r=None):
     if r is None:
         r = min(h * 0.42, w * 0.08)
@@ -252,33 +243,6 @@ def pill(ax, x, y, w, h, color, alpha=1.0, zorder=3, r=None):
         facecolor=color, edgecolor="none",
         alpha=alpha, zorder=zorder, clip_on=False,
     ))
-
-
-# ── Pillow post-processing: rounded header card ────────────────────────────────
-
-def apply_rounded_header(filepath: str, corner_r: int = 20):
-    """Rounds all 4 corners of the floating header card (same treatment as the
-    other card types' headers in scripts/social_style.py)."""
-    img  = Image.open(filepath).convert("RGB")
-    w, h = img.size
-
-    hdr_h   = round(h * 0.128)
-    card_xl = round(w * 0.025)
-    card_xr = w - card_xl
-    card_yt = round(hdr_h * 0.09)
-    card_yb = hdr_h - card_yt  # equal padding top and bottom
-
-    mask = Image.new("L", (w, h), 0)
-    draw = ImageDraw.Draw(mask)
-    # All 4 corners rounded — card now floats with equal padding above and below.
-    draw.rounded_rectangle([card_xl, card_yt, card_xr, card_yb],
-                            radius=corner_r, fill=255)
-    # Preserve everything below the header boundary (company strip, chart, footer).
-    draw.rectangle([0, hdr_h, w, h], fill=255)
-
-    bg_rgb = tuple(int(C["bg"].lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
-    bg_img = Image.new("RGB", (w, h), bg_rgb)
-    Image.composite(img, bg_img, mask).save(filepath)
 
 
 # ── Main figure ────────────────────────────────────────────────────────────────
@@ -306,27 +270,17 @@ def build_figure(quarters: list, company: str, ticker: str,
     # 0.537–0.555  legend strip   (lowered: bigger gap from stats above)
     # 0.583–0.760  stats strip
     # 0.760–0.868  company strip
-    # 0.872–1.000  header (gradient fills full strip; corners rounded in post-processing)
+    # 0.872–1.000  header (minimal eyebrow label, matches social_style.py's draw_header)
 
     # ── Header ────────────────────────────────────────────────────────────────
+    # Minimal eyebrow label only — no bold banner card/logo (that treatment is
+    # gone from the app's share pages too; see widgets/share_card_theme.dart).
+    # The brand wordmark now lives in the footer instead.
     ax_h = fig.add_axes([0, 0.872, 1, 0.128])
     ax_h.patch.set_visible(False)          # transparent — figure bg shows through gaps
     ax_h.set_xlim(0, 1); ax_h.set_ylim(0, 1); ax_h.axis("off")
-    hdr_grad(ax_h)
-
-    # Tighter line spacing: both texts closer together vertically
-    ax_h.text(0.055, 0.63, "StockScore.co.uk", color="white",
-              fontsize=28, fontweight="bold", va="center", zorder=1)
-    ax_h.text(0.055, 0.30, "Quarterly Earnings Trend", color="white",
-              fontsize=15, alpha=0.90, va="center", zorder=1)
-
-    # Brand logo — right side of card, square with equal ~12 px padding top/bottom/right.
-    # Card bounds (pixels): top=16, bottom=152, right=1053 → logo = 112×112 px,
-    # placed at x=929–1041, y=28–140 → figure fractions below.
-    if br_logo is not None:
-        bax = fig.add_axes([0.860, 0.896, 0.104, 0.083])
-        bax.imshow(br_logo)
-        bax.axis("off")
+    ax_h.text(0.055, 0.5, "QUARTERLY EARNINGS TREND", color=C["teal"],
+              fontsize=16, fontweight="bold", va="center", zorder=1)
 
     # ── Company strip ─────────────────────────────────────────────────────────
     # Extra top padding gives breathing room below the header card.
@@ -583,12 +537,21 @@ def build_figure(quarters: list, company: str, ticker: str,
         tick_labels[-1].set_color(C["teal"])
 
     # ── Footer ────────────────────────────────────────────────────────────────
+    # Minimal centered logo + site name, no social handle/divider — matches
+    # widgets/share_card_theme.dart's ShareCardTheme.footer.
     ax_f = fig.add_axes([0, 0, 1, 0.050])
     ax_f.patch.set_visible(False)
     ax_f.set_xlim(0, 1); ax_f.set_ylim(0, 1); ax_f.axis("off")
-    ax_f.plot([0.04, 0.96], [0.88, 0.88], color=C["div"], lw=1.2)
-    ax_f.text(0.5, 0.36, "@StockScoreUK - daily market insights",
-              color=C["grey"], fontsize=14, ha="center", va="center")
+
+    if br_logo is not None:
+        bax = fig.add_axes([0.400, 0.012, 0.030, 0.030])
+        bax.imshow(br_logo)
+        bax.axis("off")
+        ax_f.text(0.450, 0.5, "StockScore.co.uk", color="white", alpha=0.8,
+                  fontsize=13, fontweight="bold", va="center", ha="left")
+    else:
+        ax_f.text(0.5, 0.5, "StockScore.co.uk", color="white", alpha=0.8,
+                  fontsize=13, fontweight="bold", va="center", ha="center")
 
     return fig
 
@@ -632,9 +595,6 @@ def main():
     fig = build_figure(quarters, company, ticker, co_logo, br_logo)
     fig.savefig(out, dpi=DPI, facecolor=C["bg"])
     plt.close(fig)
-
-    print("      Applying rounded header ...")
-    apply_rounded_header(out)
 
     print(f"\n      Saved → {out}\n")
 

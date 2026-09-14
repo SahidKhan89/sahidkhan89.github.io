@@ -122,18 +122,18 @@ def _render_section(img, x, y, label, color, stocks):
 
 def render_movers_combined(human_date: str, gainers: list, losers: list):
     img = ss.new_canvas()
-    y = ss.draw_header(img, f"Gainers & Losers  ·  {human_date}", ss.load_brand_logo())
+    y = ss.draw_header(img, f"Gainers & Losers  ·  {human_date}")
     y += 32
     y = _render_section(img, MARGIN_X, y, "GAINERS", ss.C["green"], gainers)
     y += 30
     y = _render_section(img, MARGIN_X, y, "LOSERS", ss.C["red"], losers)
-    ss.draw_footer(img)
+    ss.draw_footer(img, ss.load_brand_logo())
     return img
 
 
 def render_single_list(title: str, human_date: str, stocks: list):
     img = ss.new_canvas()
-    y = ss.draw_header(img, f"{title}  ·  {human_date}", ss.load_brand_logo())
+    y = ss.draw_header(img, f"{title}  ·  {human_date}")
     y += 32
     card_w = ss.grid_card_width(COLS, margin_x=MARGIN_X)
     items = stocks[:MAX_ITEMS_SINGLE]
@@ -142,7 +142,7 @@ def render_single_list(title: str, human_date: str, stocks: list):
                      gap_y=SINGLE_GAP_Y)
     else:
         ss.draw_empty_note(img, MARGIN_X, y, "No data available")
-    ss.draw_footer(img)
+    ss.draw_footer(img, ss.load_brand_logo())
     return img, items
 
 

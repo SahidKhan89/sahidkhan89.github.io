@@ -203,7 +203,7 @@ def _draw_zone_legend(img, draw, y):
 def render_card(human_date: str, price: float, change_pct: float):
     img  = ss.new_canvas()
     draw = ImageDraw.Draw(img)
-    y0   = ss.draw_header(img, f"VIX Fear Gauge  ·  {human_date}", ss.load_brand_logo())
+    y0   = ss.draw_header(img, f"VIX Fear Gauge  ·  {human_date}")
 
     title_font = ss.font(True, 32)
     draw.text((ss.CW / 2, y0 + 45), "Market Volatility Index", font=title_font,
@@ -239,7 +239,7 @@ def render_card(human_date: str, price: float, change_pct: float):
 
     _draw_zone_legend(img, draw, badge_y + 80)
 
-    ss.draw_footer(img)
+    ss.draw_footer(img, ss.load_brand_logo())
     return img
 
 

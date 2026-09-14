@@ -127,7 +127,7 @@ def _render_header_band() -> tuple:
     The 'Market Volatility Index' subtitle line is drawn separately as part
     of the vertically-centered content block (see render_frames)."""
     canvas = Image.new("RGB", (REEL_W, 260), ss.C["bg"])
-    header_bottom = ss.draw_header(canvas, "VIX Fear Gauge", ss.load_brand_logo())
+    header_bottom = ss.draw_header(canvas, "VIX Fear Gauge")
     return canvas.crop((0, 0, REEL_W, header_bottom)), header_bottom
 
 
@@ -177,7 +177,7 @@ def render_frames(human_date: str, price: float, change_pct: float, out_dir: Pat
     header_band, header_h = _render_header_band()
 
     footer_canvas = Image.new("RGB", (REEL_W, REEL_H), ss.C["bg"])
-    ss.draw_footer(footer_canvas)
+    ss.draw_footer(footer_canvas, ss.load_brand_logo())
     footer_top = REEL_H - FOOTER_ZONE
     footer_band = footer_canvas.crop((0, footer_top, REEL_W, REEL_H))
 

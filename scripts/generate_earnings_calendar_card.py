@@ -105,7 +105,7 @@ def _render_column(img, col_x0, group_w, y0, label: str, icon_fn, entries: list)
 
 def render_card(human_date: str, before_open: list, after_close: list):
     img = ss.new_canvas()   # fixed 1080x1350 — same size as every other card type
-    y0 = ss.draw_header(img, f"Earnings Calendar  ·  {human_date}", ss.load_brand_logo())
+    y0 = ss.draw_header(img, f"Earnings Calendar  ·  {human_date}")
     y0 += HEADER_GAP
 
     group_w   = _col_group_width()
@@ -128,7 +128,7 @@ def render_card(human_date: str, before_open: list, after_close: list):
     ImageDraw.Draw(img).line(
         [(divider_x, y0 - 4), (divider_x, content_bottom)], fill=ss.C["div"], width=2)
 
-    ss.draw_footer(img)
+    ss.draw_footer(img, ss.load_brand_logo())
     return img
 
 
