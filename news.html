@@ -641,10 +641,10 @@
     drawCardBase(ctx, article);
     drawCardContent(ctx, article, null); // draw immediately with generative bg
 
-    // Load logo
+    // Load logo — redraw just the footer (its zone only) once it's ready
     const logo = new Image();
     logo.crossOrigin = 'anonymous';
-    logo.onload = () => { drawHeaderWithLogo(ctx, logo, IMG_Y); };
+    logo.onload = () => { drawFooter(ctx, FT_Y, article, logo); };
     logo.onerror = () => {};
     logo.src = '/images/logo.png';
 
@@ -657,7 +657,7 @@
         drawCardContent(ctx, article, img);
         const logo2 = new Image();
         logo2.crossOrigin = 'anonymous';
-        logo2.onload = () => { drawHeaderWithLogo(ctx, logo2, IMG_Y); };
+        logo2.onload = () => { drawFooter(ctx, FT_Y, article, logo2); };
         logo2.src = '/images/logo.png';
       };
       img.onerror = () => {}; // proxy failed — generative bg already drawn, keep it
@@ -863,68 +863,24 @@
     }
   }
 
-  // Matches the Flutter share page header style:
-  // Left-to-right gradient (#00786E → #00D2BE), text on left, logo directly on gradient on right
-  function drawHeaderGradient(ctx, hh) {
-    const grad = ctx.createLinearGradient(0, 0, CW, 0);
-    grad.addColorStop(0, '#00786e');
-    grad.addColorStop(1, '#00d2be');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, CW, hh);
-  }
-
+  // Minimal tracked-caps eyebrow label, no gradient banner/logo — matches the
+  // app's redesigned share pages (widgets/share_card_theme.dart /
+  // *_share_page.dart) and the same style already shipped across the
+  // scripts/generate_*_card.py posts. The brand wordmark now lives in the
+  // footer instead (see drawFooter).
   function drawHeaderText(ctx, hh) {
     ctx.save();
-    ctx.textBaseline = 'middle';
+    ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
-
-    // "Stock Score" — brand name, bold white
-    ctx.font = 'bold 58px Inter, Arial, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0,0,0,0.25)';
-    ctx.shadowBlur = 6;
-    ctx.fillText('Stock Score', 60, hh / 2 - 22);
-
-    // "Market News" — mint subtitle
-    ctx.font = '500 30px Inter, Arial, sans-serif';
-    ctx.fillStyle = '#dcffdc';
-    ctx.shadowBlur = 0;
-    ctx.fillText('Market News', 60, hh / 2 + 28);
-
+    ctx.font = '700 32px Inter, Arial, sans-serif';
+    ctx.fillStyle = '#00d2be';
+    try { ctx.letterSpacing = '3px'; } catch (e) { /* older browsers: no tracking, still legible */ }
+    ctx.fillText('MARKET NEWS', 72, hh / 2 + 11);
     ctx.restore();
   }
 
-  function drawLogoSquare(ctx, hh, logo) {
-    const sqSize = 104;
-    const sqX = CW - 60 - sqSize;
-    const sqY = (hh - sqSize) / 2;
-    const r = 14;
-
-    if (logo) {
-      // Draw logo directly on the gradient — no white background
-      // A subtle drop shadow for depth without a white box
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.35)';
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetY = 4;
-      roundRect(ctx, sqX, sqY, sqSize, sqSize, r);
-      ctx.clip();
-      ctx.drawImage(logo, sqX, sqY, sqSize, sqSize);
-      ctx.restore();
-    }
-    // When logo hasn't loaded yet, draw nothing — gradient shows through cleanly
-  }
-
   function drawHeader(ctx, hh) {
-    drawHeaderGradient(ctx, hh);
     drawHeaderText(ctx, hh);
-    // Logo draws once loaded — no placeholder square needed
-  }
-
-  function drawHeaderWithLogo(ctx, logo, hh) {
-    drawHeaderGradient(ctx, hh);
-    drawHeaderText(ctx, hh);
-    drawLogoSquare(ctx, hh, logo);
   }
 
   function drawSourceBadge(ctx, source, y) {
@@ -938,7 +894,7 @@
     ctx.restore();
   }
 
-  function drawFooter(ctx, fy, article) {
+  function drawFooter(ctx, fy, article, logo) {
     // Background strip
     ctx.fillStyle = 'rgba(255,255,255,0.022)'; ctx.fillRect(0, fy, CW, CH - fy);
     ctx.strokeStyle = C.footerLine; ctx.lineWidth = 1;
@@ -965,12 +921,25 @@
       ctx.fillText(timeStr, 72, mid + 16);
     }
 
-    // Right — brand
+    // Right — minimal brand: small logo + site name, no tagline/handle — matches
+    // widgets/share_card_theme.dart's ShareCardTheme.footer and the same
+    // treatment already shipped across scripts/generate_*_card.py.
     ctx.textAlign = 'right';
-    ctx.font = 'bold 28px Inter, Arial, sans-serif'; ctx.fillStyle = C.teal;
-    ctx.fillText('stockscore.co.uk', CW - 72, mid - 18);
-    ctx.font = '400 20px Inter, Arial, sans-serif'; ctx.fillStyle = C.gray;
-    ctx.fillText('Smarter stock analysis', CW - 72, mid + 18);
+    ctx.font = '700 26px Inter, Arial, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText('StockScore.co.uk', CW - 72, mid);
+
+    if (logo) {
+      const textW = ctx.measureText('StockScore.co.uk').width;
+      const logoSize = 34, gap = 12;
+      const logoX = CW - 72 - textW - gap - logoSize;
+      const logoY = mid - logoSize / 2;
+      ctx.save();
+      roundRect(ctx, logoX, logoY, logoSize, logoSize, 8);
+      ctx.clip();
+      ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
+      ctx.restore();
+    }
 
     ctx.restore();
   }
