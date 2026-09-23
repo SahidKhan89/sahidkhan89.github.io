@@ -2,9 +2,9 @@ name: Post Dividends Calendar to Social Media
 
 on:
   schedule:
-    - cron: '22 11 * * 1-5'   # weekdays at 11:22 UTC (~11:22am BST / 10:22am GMT in winter) — posts
-                               # the next market day's ex-div date, offset off :00 to avoid
-                               # GitHub's on-the-hour schedule congestion
+    - cron: '22 11 * * 1,3,5'   # Mon/Wed/Fri at 11:22 UTC (~11:22am BST / 10:22am GMT in winter) —
+                                 # posts the next market day's ex-div date, offset off :00 to avoid
+                                 # GitHub's on-the-hour schedule congestion
   workflow_dispatch:
     inputs:
       date:

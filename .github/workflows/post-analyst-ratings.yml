@@ -2,7 +2,7 @@ name: Post Analyst Rating to Social Media
 
 on:
   schedule:
-    - cron: '33 18 * * 1-5'   # weekdays at 18:33 UTC (~6:33pm BST / 5:33pm GMT in winter) — offset
+    - cron: '33 18 * * 2,5'   # Tue/Fri at 18:33 UTC (~6:33pm BST / 5:33pm GMT in winter) — offset
                                # off :00 to avoid GitHub's on-the-hour schedule congestion
   workflow_dispatch:
     inputs:
