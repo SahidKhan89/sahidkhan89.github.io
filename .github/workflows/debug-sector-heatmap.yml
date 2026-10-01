@@ -1,0 +1,28 @@
+name: Debug Sector Heatmap Data (temporary)
+
+# TEMPORARY — logs what yfinance / Yahoo / the backend return at different
+# times around the US close, to find why evening heatmap posts are one session
+# stale. Delete once diagnosed. Read results with: gh run view <id> --log
+on:
+  schedule:
+    - cron: '07 20 * * 1-5'   # ~5 min after close (EDT)
+    - cron: '43 20 * * 1-5'
+    - cron: '27 21 * * 1-5'   # current posting time
+    - cron: '17 23 * * 1-5'
+    - cron: '17 1 * * 2-6'    # after midnight UTC
+    - cron: '17 4 * * 2-6'
+    - cron: '17 6 * * 2-6'    # UK morning, when the data looks right
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install (same yfinance version as the backend)
+        run: pip install yfinance==0.2.61 requests
+      - name: Run diagnostic
+        run: python scripts/debug_sector_heatmap_data.py
