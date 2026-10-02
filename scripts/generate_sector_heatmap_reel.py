@@ -31,7 +31,6 @@ import random
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -389,24 +388,22 @@ def encode_video(frame_dir: Path, out_path: Path, fps: int, n_frames: int) -> st
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", help="YYYY-MM-DD label override, defaults to the last market day")
+    parser.add_argument("--date", help="YYYY-MM-DD label override, defaults to the backend's as_of session")
     parser.add_argument("--out", help="output mp4 path override")
     args = parser.parse_args()
 
-    forced = args.date or os.environ.get("FORCE_DATE")
-    if forced:
-        date_obj = datetime.strptime(forced, "%Y-%m-%d").date()
-    else:
-        date_obj = ss.last_market_day(datetime.now(timezone.utc).date())
-    date_str   = date_obj.strftime("%Y-%m-%d")
-    human_date = date_obj.strftime("%a %d %b")
-
-    print(f"Fetching sector heatmap (labeling as {date_str})...")
-    sectors = card.fetch_heatmap()
+    print("Fetching sector heatmap...")
+    sectors, as_of = card.fetch_heatmap()
     if not sectors:
         print("No sector data — nothing to render.")
         return
-    print(f"  {len(sectors)} sectors found")
+    print(f"  {len(sectors)} sectors found (as_of {as_of})")
+    date_obj = card.resolve_date(args.date or os.environ.get("FORCE_DATE"), as_of)
+    if date_obj is None:
+        return
+    date_str   = date_obj.strftime("%Y-%m-%d")
+    human_date = date_obj.strftime("%a %d %b")
+    print(f"  labelling as {date_str}")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = Path(args.out) if args.out else OUTPUT_DIR / f"{date_str}.mp4"

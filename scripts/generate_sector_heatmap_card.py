@@ -10,17 +10,22 @@ matching the look of lib/heatmap_share_page.dart. Saves to
 images/sector-heatmap/<date>.png and writes a manifest for the posting step
 (scripts/post_sector_heatmap.py).
 
+The card is labelled with the session the backend says the data is for
+(its `as_of`), and is skipped if that isn't the latest completed US session —
+e.g. Yahoo serving a stale bar, or a market holiday.
+
 Set FORCE_DATE=YYYY-MM-DD (or pass --date) to label a specific date, e.g. for
 local testing — the underlying data is always whatever the backend currently
-has cached (it doesn't accept a date param).
+has cached (it doesn't accept a date param), and the staleness check is skipped.
 """
 
 import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 from PIL import ImageDraw
@@ -83,14 +88,39 @@ def _best_label(draw, short: str, fnt, max_w: int, max_lines: int = 1) -> list:
     return ss.wrap_text(draw, short, fnt, max_w, max_lines)
 
 
-def fetch_heatmap() -> list:
-    r = requests.get(f"{BACKEND_URL}/sector-heatmap", timeout=30)
+def fetch_heatmap() -> tuple:
+    """Returns (sectors, as_of) — as_of is the session date (YYYY-MM-DD) the
+    backend's figures are for, or None from an older backend without it."""
+    r = requests.get(f"{BACKEND_URL}/sector-heatmap", timeout=60)
     r.raise_for_status()
     data = r.json()
     if "error" in data:
         print(f"  backend error: {data['error']}")
-        return []
-    return data.get("sectors", [])
+        return [], None
+    return data.get("sectors", []), data.get("as_of")
+
+
+def last_completed_session(now_utc: datetime):
+    """Most recent US weekday session that has closed (16:00 ET), ignoring
+    holidays — so a holiday reads as stale data and the post is skipped."""
+    ny = now_utc.astimezone(ZoneInfo("America/New_York"))
+    d  = ny.date() if ny.time() >= time(16, 0) else ny.date() - timedelta(days=1)
+    return ss.last_market_day(d)
+
+
+def resolve_date(forced: str | None, as_of: str | None):
+    """The date to label the card with, or None if the data is stale."""
+    if forced:
+        return datetime.strptime(forced, "%Y-%m-%d").date()
+    expected = last_completed_session(datetime.now(timezone.utc))
+    if as_of is None:
+        print(f"  backend sent no as_of — assuming {expected}")
+        return expected
+    as_of_date = datetime.strptime(as_of, "%Y-%m-%d").date()
+    if as_of_date != expected:
+        print(f"  data is for {as_of_date}, expected {expected} — stale, skipping")
+        return None
+    return as_of_date
 
 
 def _heat_color(pct: float, blend_max: float):
@@ -200,26 +230,25 @@ def render_card(human_date: str, sectors: list):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", help="YYYY-MM-DD label override, defaults to the last market day")
+    parser.add_argument("--date", help="YYYY-MM-DD label override, defaults to the backend's as_of session")
     args = parser.parse_args()
 
-    forced = args.date or os.environ.get("FORCE_DATE")
-    if forced:
-        date_obj = datetime.strptime(forced, "%Y-%m-%d").date()
-    else:
-        date_obj = ss.last_market_day(datetime.now(timezone.utc).date())
-    date_str   = date_obj.strftime("%Y-%m-%d")
-    human_date = date_obj.strftime("%a %d %b")
-
-    print(f"Fetching sector heatmap (labeling as {date_str})...")
-    sectors = fetch_heatmap()
+    print("Fetching sector heatmap...")
+    sectors, as_of = fetch_heatmap()
 
     if not sectors:
         print("No sector data — nothing to render.")
         MANIFEST.write_text(json.dumps(None) + "\n")
         return
 
-    print(f"  {len(sectors)} sectors found")
+    print(f"  {len(sectors)} sectors found (as_of {as_of})")
+    date_obj = resolve_date(args.date or os.environ.get("FORCE_DATE"), as_of)
+    if date_obj is None:
+        MANIFEST.write_text(json.dumps(None) + "\n")
+        return
+    date_str   = date_obj.strftime("%Y-%m-%d")
+    human_date = date_obj.strftime("%a %d %b")
+    print(f"  labelling as {date_str}")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = OUTPUT_DIR / f"{date_str}.png"
