@@ -79,7 +79,14 @@ def main():
 
     refresh = data["refresh_token"]
     days = int(data.get("refresh_expires_in", 0)) // 86400
-    print(f"\nConnected (open_id {data.get('open_id')}). Refresh token valid ~{days} days.")
+
+    # user.info.basic — confirms which TikTok account was connected.
+    info = requests.get("https://open.tiktokapis.com/v2/user/info/",
+                        params={"fields": "open_id,display_name"},
+                        headers={"Authorization": f"Bearer {data['access_token']}"},
+                        timeout=30).json().get("data", {}).get("user", {})
+    who = info.get("display_name") or data.get("open_id")
+    print(f"\nConnected TikTok account: {who}. Refresh token valid ~{days} days.")
 
     if shutil.which("gh"):
         subprocess.run(["gh", "secret", "set", SECRET_NAME, "--body", refresh], check=True)
