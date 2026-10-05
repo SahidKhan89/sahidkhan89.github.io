@@ -34,7 +34,18 @@ MAX_HISTORY = 500
 REPO        = os.environ.get("GITHUB_REPOSITORY", "sahidkhan89/sahidkhan89.github.io")
 BRANCH      = os.environ.get("GITHUB_REF_NAME", "main")
 
-HASHTAG_LINE = "#Investing"
+# Instagram caps posts at 5 hashtags. Ticker + company tags reach people
+# following that stock; the broad tags fill the rest.
+BROAD_TAGS = ["#Investing", "#StockMarket", "#Stocks"]
+
+
+def _tag(text: str) -> str:
+    return "#" + "".join(ch for ch in text if ch.isalnum())
+
+
+def hashtag_line(entry: dict) -> str:
+    tags = [_tag(entry["ticker"]), _tag(entry["name"])] + BROAD_TAGS
+    return " ".join(dict.fromkeys(tags))   # dedupe (e.g. AMD's ticker == name)
 HOOK_MAX_CHARS = 280   # the first line or two is all that shows under a Reel before "more"
 
 
@@ -56,7 +67,7 @@ def facts_footer(entry: dict) -> str:
         "",
         "Dividends reinvested. Past performance doesn't guarantee future returns. Not financial advice.",
         "",
-        HASHTAG_LINE,
+        hashtag_line(entry),
     ])
 
 

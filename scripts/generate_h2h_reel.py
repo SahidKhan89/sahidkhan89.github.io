@@ -74,8 +74,11 @@ MATCHUPS = [
 ]
 ROTATION_COOLDOWN = 20
 
-COLOR_A = (56, 189, 248)    # sky blue
-COLOR_B = (255, 179, 71)    # amber (= ss.C["amber"])
+COOL = (56, 189, 248)    # sky blue
+WARM = (255, 179, 71)    # amber (= ss.C["amber"])
+# Brands whose logo file measures warm but whose brand reads blue (Walmart's
+# logo is mostly the yellow spark).
+FORCE_COOL = {"WMT"}
 
 FPS = inv.FPS
 REEL_W, REEL_H = inv.REEL_W, inv.REEL_H
@@ -185,6 +188,31 @@ def rotation_order(history: list) -> list:
                           key=lambda m: last_used.get(pair_key(m), -1))
 
 
+def logo_warmth(logo: Image.Image | None) -> float:
+    """How red/orange/yellow a logo's saturated pixels are (-1 blue .. +1 red),
+    ignoring transparent, grey and near-black pixels."""
+    if logo is None:
+        return 0.0
+    a = np.asarray(logo.convert("RGBA").resize((64, 64))).astype(float)
+    rgb, alpha = a[..., :3], a[..., 3]
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    mask = (alpha > 128) & ((mx - mn) / np.maximum(mx, 1) > 0.35) & (mx > 60)
+    if mask.sum() < 30:
+        return 0.0
+    r, _, b = rgb[mask].T
+    return float(np.mean(r - b) / 255)
+
+
+def assign_colors(story: dict, logos: dict) -> dict:
+    """Gives amber to the stock with the warmer brand and blue to the other, so
+    Amazon isn't drawn blue against an orange Microsoft. Falls back to A=blue,
+    B=amber when the two logos are too close to call."""
+    wa, wb = (-1.0 if story[s]["ticker"] in FORCE_COOL else logo_warmth(logos[s]) for s in "ab")
+    if wa - wb > 0.15:
+        return {"a": WARM, "b": COOL}
+    return {"a": COOL, "b": WARM}
+
+
 # ── Overlays ────────────────────────────────────────────────────────────────────
 
 def _paste_logo(overlay: Image.Image, logo: Image.Image | None, x: float, y: float, size: int) -> None:
@@ -215,7 +243,7 @@ def render_hook_overlay(story: dict, logos: dict) -> Image.Image:
     y += 52 + 50
 
     logo_size = 110
-    for i, (side, col) in enumerate((("a", COLOR_A), ("b", COLOR_B))):
+    for i, (side, col) in enumerate(story["_colors"].items()):
         if i == 1:
             draw.text((cx, y), "vs", font=ss.font(True, 52), fill=ss.C["grey"], anchor="ma")
             y += 52 + 34
@@ -232,7 +260,7 @@ def render_hook_overlay(story: dict, logos: dict) -> Image.Image:
     draw.text((cx, y), f"{story['years']} years ago...", font=ss.font(True, 64),
                fill=ss.C["white"], anchor="ma")
     y += 64 + 60
-    draw.text((cx, y), "which one won?", font=ss.font(True, 56), fill=ss.C["teal"], anchor="ma")
+    draw.text((cx, y), "who wins?", font=ss.font(True, 56), fill=ss.C["teal"], anchor="ma")
     y += 56 + 10
     return overlay.crop((0, 0, REEL_W, y))
 
@@ -273,7 +301,7 @@ def render_result_overlay(story: dict) -> Image.Image:
     pill_w, pill_h, gap, top = 450, 150, 40, 22
     x0 = (REEL_W - 2 * pill_w - gap) / 2
 
-    for i, (side, col) in enumerate((("a", COLOR_A), ("b", COLOR_B))):
+    for i, (side, col) in enumerate(story["_colors"].items()):
         s = story[side]
         x = x0 + i * (pill_w + gap)
         won = s["ticker"] == story["winner"]
@@ -316,6 +344,8 @@ def render_frames(story: dict, out_dir: Path) -> int:
     ss.draw_footer(footer_band, ss.load_brand_logo())
     base.alpha_composite(footer_band)
 
+    story["_colors"] = assign_colors(story, logos)
+    ca, cb = story["_colors"]["a"], story["_colors"]["b"]
     hook = render_hook_overlay(story, logos)
     content_top = inv.TOP_SAFE_PAD + 120
     content_bot = REEL_H - inv.FOOTER_ZONE
@@ -325,7 +355,7 @@ def render_frames(story: dict, out_dir: Path) -> int:
     result = render_result_overlay(story)
     cta = render_cta_overlay()
     toasts = {side: render_toast(story[side]["name"], col)
-              for side, col in (("a", COLOR_A), ("b", COLOR_B))}
+              for side, col in story["_colors"].items()}
 
     # Same vertical rhythm as the single-stock reel; everything above ~y=1600
     # (the bottom of a Reel sits under Instagram's caption overlay).
@@ -377,13 +407,13 @@ def render_frames(story: dict, out_dir: Path) -> int:
     def chart_frame(k, pops=(0.0, 0.0)):
         kk = min(int(np.floor(k)), n - 1)
         ymax = max(running_max[kk] * 1.12, inv.INVESTED * 1.6)
-        layer = inv.render_chart_layer(va, vb, k, ymax, COLOR_A, (), bench_color=COLOR_B,
+        layer = inv.render_chart_layer(va, vb, k, ymax, ca, (), bench_color=cb,
                                        bench_width=7, area_fill=False)
         img = chart_base.copy()
         img.paste(layer, (inv.CHART_X0, inv.CHART_Y0), layer)
         draw = ImageDraw.Draw(img)
         frac = k - kk
-        for series, col, cx, pop in ((va, COLOR_A, COL_X[0], pops[0]), (vb, COLOR_B, COL_X[1], pops[1])):
+        for series, col, cx, pop in ((va, ca, COL_X[0], pops[0]), (vb, cb, COL_X[1], pops[1])):
             v = series[kk] if kk >= n - 1 else series[kk] + (series[kk + 1] - series[kk]) * frac
             text = inv.fmt_money(float(v))
             size = round(92 * (1 + 0.14 * pop))

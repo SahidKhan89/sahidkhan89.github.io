@@ -29,7 +29,17 @@ MAX_HISTORY = 500
 REPO        = os.environ.get("GITHUB_REPOSITORY", "sahidkhan89/sahidkhan89.github.io")
 BRANCH      = os.environ.get("GITHUB_REF_NAME", "main")
 
-HASHTAG_LINE = "#Investing"
+# Instagram caps posts at 5 hashtags: both tickers, then broad tags.
+BROAD_TAGS = ["#Investing", "#StockMarket", "#Stocks"]
+
+
+def _tag(text: str) -> str:
+    return "#" + "".join(ch for ch in text if ch.isalnum())
+
+
+def hashtag_line(entry: dict) -> str:
+    tags = [_tag(entry["a"]["ticker"]), _tag(entry["b"]["ticker"])] + BROAD_TAGS
+    return " ".join(tags)
 HOOK_MAX_CHARS = 280   # the first line or two is all that shows under a Reel before "more"
 
 
@@ -53,14 +63,14 @@ def facts_footer(entry: dict) -> str:
         "",
         "Dividends reinvested. Past performance doesn't guarantee future returns. Not financial advice.",
         "",
-        HASHTAG_LINE,
+        hashtag_line(entry),
     ]
     return "\n".join(lines)
 
 
 def static_hook(entry: dict) -> str:
     # Never names the winner — the first caption line shows under the reel,
-    # and spoiling the result there undercuts the "which one won?" hook.
+    # and spoiling the result there undercuts the "who wins?" hook.
     a, b = entry["a"], entry["b"]
     return (f"{a['name']} vs {b['name']}: $1,000 in each, {entry['years']} years ago. "
             f"Make your guess before the end.")
