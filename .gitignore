@@ -8,6 +8,8 @@ scripts/_sector_heatmap_reel_manifest.json
 scripts/_movers_manifest.json
 scripts/_vix_gauge_manifest.json
 scripts/_vix_gauge_reel_manifest.json
+scripts/_investment_reel_manifest.json
+scripts/_h2h_reel_manifest.json
 
 # OS / Python cruft
 .DS_Store
