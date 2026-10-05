@@ -10,6 +10,7 @@ posts from unaudited apps are forced private).
 
     python scripts/tiktok_post.py --reel h2h          # or --reel investment
     python scripts/tiktok_post.py --file some.mp4      # local test, no tracking
+    python scripts/tiktok_post.py --status <publish_id> # where did an upload get to?
 
 Reads that reel's manifest for the date, uploads images/<reel>-reel/<date>.mp4
 and records it in data/posted_tiktok.json so a re-run doesn't send it twice.
@@ -40,6 +41,7 @@ TRACKING  = ROOT / "data" / "posted_tiktok.json"
 LOCAL_TOKEN = Path.home() / ".config" / "stockscore" / "tiktok_refresh_token"
 TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 INIT_URL  = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
+STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
 
 REELS = {
     "investment": (Path(__file__).parent / "_investment_reel_manifest.json", "investment-reel"),
@@ -135,11 +137,19 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--reel", choices=sorted(REELS))
     group.add_argument("--file", type=Path, help="upload this mp4 directly (local test, no tracking)")
+    group.add_argument("--status", metavar="PUBLISH_ID", help="check an earlier upload's status")
     args = parser.parse_args()
 
     if not (os.environ.get("TIKTOK_CLIENT_KEY") and os.environ.get("TIKTOK_CLIENT_SECRET")
             and stored_refresh_token()):
         print("TikTok secrets not configured — skipping.")
+        return
+
+    if args.status:
+        r = requests.post(STATUS_URL, json={"publish_id": args.status},
+                          headers={"Authorization": f"Bearer {refresh_access_token()}",
+                                   "Content-Type": "application/json; charset=UTF-8"}, timeout=30)
+        print(json.dumps(r.json(), indent=2))
         return
 
     if args.file:
