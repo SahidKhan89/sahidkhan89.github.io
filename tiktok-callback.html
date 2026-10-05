@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>TikTok Connect</title>
+  <!--
+    OAuth redirect target for scripts/tiktok_auth.py. TikTok requires an
+    https redirect URI (no localhost), so after login it lands here and this
+    page just shows the authorization code to paste back into the script.
+    Nothing is sent anywhere — the code only works with the app's secret,
+    which never leaves the script.
+  -->
+  <style>
+    :root { --bg: #0F172A; --card: #1E293B; --text: #F1F5F9; --muted: #94A3B8; --accent: #00D2BE; --err: #FF4D6D; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
+           background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, sans-serif; }
+    main { width: 100%; max-width: 560px; background: var(--card); border-radius: 16px; padding: 28px; }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    p { margin: 0 0 16px; color: var(--muted); }
+    code { display: block; padding: 14px; border-radius: 10px; background: var(--bg); color: var(--accent);
+           font: 14px/1.4 ui-monospace, Menlo, monospace; word-break: break-all; }
+    button { margin-top: 14px; padding: 10px 18px; border: 0; border-radius: 999px; cursor: pointer;
+             background: var(--accent); color: var(--bg); font-weight: 600; font-size: 15px; }
+    .err { color: var(--err); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="title">TikTok connected</h1>
+    <p id="msg">Copy this code and paste it into the terminal where <strong>tiktok_auth.py</strong> is waiting. It expires in a few minutes.</p>
+    <code id="code"></code>
+    <button id="copy" type="button">Copy code</button>
+  </main>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const code = q.get("code");
+    const codeEl = document.getElementById("code");
+    if (code) {
+      // Code and state together, so the script can check the state matches.
+      codeEl.textContent = code + " " + (q.get("state") || "");
+      document.getElementById("copy").onclick = async () => {
+        try { await navigator.clipboard.writeText(codeEl.textContent); } catch (e) {}
+        document.getElementById("copy").textContent = "Copied";
+      };
+    } else {
+      document.getElementById("title").textContent = "TikTok connection failed";
+      document.getElementById("title").className = "err";
+      document.getElementById("msg").textContent = q.get("error_description") || q.get("error") || "No authorization code was returned.";
+      codeEl.remove();
+      document.getElementById("copy").remove();
+    }
+  </script>
+</body>
+</html>
