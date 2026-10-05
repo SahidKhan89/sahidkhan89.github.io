@@ -34,18 +34,19 @@ MAX_HISTORY = 500
 REPO        = os.environ.get("GITHUB_REPOSITORY", "sahidkhan89/sahidkhan89.github.io")
 BRANCH      = os.environ.get("GITHUB_REF_NAME", "main")
 
-# Instagram caps posts at 5 hashtags. Ticker + company tags reach people
-# following that stock; the broad tags fill the rest.
-BROAD_TAGS = ["#Investing", "#StockMarket", "#Stocks"]
-
-
+# Max 3 hashtags: the ticker and company reach people following that stock,
+# #Investing reaches the broader audience.
 def _tag(text: str) -> str:
     return "#" + "".join(ch for ch in text if ch.isalnum())
 
 
 def hashtag_line(entry: dict) -> str:
-    tags = [_tag(entry["ticker"]), _tag(entry["name"])] + BROAD_TAGS
-    return " ".join(dict.fromkeys(tags))   # dedupe (e.g. AMD's ticker == name)
+    tags = list(dict.fromkeys([_tag(entry["ticker"]), _tag(entry["name"]), "#Investing"]))
+    if len(tags) < 3:              # ticker == name (e.g. AMD)
+        tags.append("#StockMarket")
+    return " ".join(tags)
+
+
 HOOK_MAX_CHARS = 280   # the first line or two is all that shows under a Reel before "more"
 
 
@@ -56,13 +57,10 @@ def video_url(date_str: str) -> str:
     )
 
 
-def facts_footer(entry: dict) -> str:
-    start = reel.datetime.strptime(entry["start_date"], "%Y-%m-%d").strftime("%b %Y")
+def caption_footer(entry: dict) -> str:
+    # No numbers anywhere in the caption — desktop Instagram shows the whole
+    # caption beside the video, and the result is the reel's payoff.
     return "\n".join([
-        f"${entry['ticker']}: $1,000 in {start} → {reel.fmt_money(entry['final_value'])} "
-        f"({entry['pct_change']:+,.0f}%, {entry['cagr_pct']:+.1f}% a year)",
-        f"S&P 500 over the same period: {reel.fmt_money(entry['bench_final'])}",
-        "",
         "Which stock should we run next? Drop a ticker in the comments 👇",
         "",
         "Dividends reinvested. Past performance doesn't guarantee future returns. Not financial advice.",
@@ -72,9 +70,8 @@ def facts_footer(entry: dict) -> str:
 
 
 def static_hook(entry: dict) -> str:
-    verb = "turned into" if entry["final_value"] >= 1000 else "shrank to"
-    return (f"$1,000 in {entry['name']} {entry['years']} years ago {verb} "
-            f"{reel.fmt_money(entry['final_value'])} today.")
+    return (f"$1,000 in {entry['name']}, {entry['years']} years ago. "
+            f"What do you think it's worth today? Watch to the end.")
 
 
 def llm_hook(entry: dict, max_chars: int) -> str | None:
@@ -82,14 +79,10 @@ def llm_hook(entry: dict, max_chars: int) -> str | None:
     if not api_key:
         return None
 
-    beat = entry["final_value"] > entry["bench_final"]
+    # Deliberately no results — the model can't spoil what it isn't told.
     facts = (
         f"Company: {entry['name']} (${entry['ticker']})\n"
-        f"Period: {entry['years']} years ({entry['start_date']} to {entry['end_date']})\n"
-        f"$1,000 became: {reel.fmt_money(entry['final_value'])}\n"
-        f"Total return: {entry['pct_change']:+,.1f}%  (annualised {entry['cagr_pct']:+.1f}%)\n"
-        f"Same $1,000 in the S&P 500: {reel.fmt_money(entry['bench_final'])}\n"
-        f"Beat the S&P 500: {'yes' if beat else 'no'}"
+        f"Period: {entry['years']} years ago (since {entry['start_date'][:4]})"
     )
     try:
         resp = requests.post(
@@ -106,10 +99,10 @@ def llm_hook(entry: dict, max_chars: int) -> str | None:
                     "You post on Instagram for Stock Score, a stock market app for "
                     "everyday retail investors. Write the opening hook (1-3 short sentences) "
                     "for a reel showing what $1,000 invested in a stock years ago is worth "
-                    "now. Make it land the surprise or the lesson: a huge winner, a stock "
-                    "that lagged the S&P 500, or a long flat stretch before a breakout. "
-                    "Conversational, like texting a friend, contractions fine. Factual only, "
-                    "use only the numbers given, never invent events or reasons for the moves. "
+                    "now. Build curiosity without giving the answer: you don't know the "
+                    "result, so never state or guess the value, return or direction. Invite "
+                    "viewers to guess before the end. Conversational, like texting a friend, "
+                    "contractions fine. Never invent facts, events or numbers. "
                     "No investment advice, no 'you should buy'. No hashtags, no emoji, no "
                     f"quotation marks around the output. Under {max_chars} characters. "
                     "Output ONLY the hook text."
@@ -128,7 +121,7 @@ def llm_hook(entry: dict, max_chars: int) -> str | None:
 
 
 def build_caption(entry: dict, hook: str, max_chars: int) -> str:
-    footer = facts_footer(entry)
+    footer = caption_footer(entry)
     budget = max_chars - len(footer) - 2
     if len(hook) > budget:
         hook = hook[:budget - 1] + "…"
