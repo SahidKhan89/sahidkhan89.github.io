@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -21,6 +22,10 @@ from social_post import post_to_threads, post_to_instagram, post_to_facebook
 MANIFEST  = Path(__file__).parent / "_post_manifest.json"
 TRACKING  = Path(__file__).parent.parent / "data" / "posted_earnings.json"
 MAX_HISTORY = 500
+# Earnings season can bring 15-25 watchlist reporters in a day — every chart
+# still goes to Threads/Facebook, but Instagram gets at most this many per
+# (UTC) day, taken in manifest order (watchlist order, mega-caps first).
+IG_MAX_PER_DAY = 1
 REPO      = os.environ.get("GITHUB_REPOSITORY", "sahidkhan89/sahidkhan89.github.io")
 BRANCH    = os.environ.get("GITHUB_REF_NAME", "main")
 
@@ -182,6 +187,10 @@ def main():
           f"Instagram={'yes' if has_ig else 'no'}, "
           f"Facebook={'yes' if has_fb else 'no'}]")
 
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    ig_dates = tracking.get("ig_posted_dates", [])
+    ig_left = IG_MAX_PER_DAY - ig_dates.count(today)
+
     any_posted = False
     for i, entry in enumerate(new_entries):
         ticker  = entry["ticker"]
@@ -214,11 +223,15 @@ def main():
             except Exception as e:
                 print(f"  ✗ Threads: {e}")
 
-        if has_ig:
+        if has_ig and ig_left <= 0:
+            print(f"  – Instagram: skipped (daily cap of {IG_MAX_PER_DAY} reached)")
+        elif has_ig:
             try:
                 igid = post_to_instagram(ig_caption, img_url)
                 print(f"  ✓ Instagram: {igid}")
                 success = True
+                ig_left -= 1
+                ig_dates.append(today)
             except Exception as e:
                 print(f"  ✗ Instagram: {e}")
 
@@ -239,6 +252,7 @@ def main():
 
     if any_posted:
         tracking["posted"] = list(posted)[-MAX_HISTORY:]
+        tracking["ig_posted_dates"] = ig_dates[-60:]
         TRACKING.write_text(json.dumps(tracking, indent=2) + "\n")
         print("\nTracking file updated.")
 

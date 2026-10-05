@@ -36,6 +36,10 @@ ROOT        = Path(__file__).parent.parent
 OUTPUT_DIR  = ROOT / "images" / "earnings-calendar"
 MANIFEST    = Path(__file__).parent / "_earnings_calendar_manifest.json"
 
+# Quiet days (one or two reporters) render as a mostly-empty card that looks
+# bare in the feed — below this many names, skip the post for the day.
+MIN_STOCKS  = 6
+
 FALLBACK_BG = ss.C["card"]   # no-logo tile background — same navy card tone as everywhere else
 
 MARGIN_X     = 48
@@ -152,6 +156,11 @@ def main():
         return
 
     print(f"  {len(before_open)} before open, {len(after_close)} after close")
+
+    if len(before_open) + len(after_close) < MIN_STOCKS:
+        print(f"Fewer than {MIN_STOCKS} reporting — card would look bare, skipping today.")
+        MANIFEST.write_text(json.dumps(None) + "\n")
+        return
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = OUTPUT_DIR / f"{date_str}.png"
