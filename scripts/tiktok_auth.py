@@ -13,12 +13,15 @@ which scripts/tiktok_post.py uses from the reel workflows.
 2. After you approve, TikTok redirects to www.stockscore.co.uk/tiktok-callback.html,
    which shows a code — paste it back here.
 3. Exchanges the code for tokens and saves the refresh token with
-   `gh secret set` (or prints it if gh isn't available).
+   `gh secret set` (or prints it if gh isn't available), plus a local copy in
+   ~/.config/stockscore/ for testing uploads with `tiktok_post.py --file`.
 
 The refresh token lasts 365 days; tiktok_post.py keeps the secret updated if
 TikTok rotates it, but re-run this before it expires (or if posting starts
 failing with an auth error).
 """
+
+from __future__ import annotations
 
 import os
 import secrets
@@ -26,6 +29,7 @@ import shutil
 import subprocess
 import sys
 import webbrowser
+from pathlib import Path
 from urllib.parse import urlencode
 
 import requests
@@ -34,6 +38,8 @@ REDIRECT_URI = "https://www.stockscore.co.uk/tiktok-callback.html"
 SCOPES       = "user.info.basic,video.upload"
 TOKEN_URL    = "https://open.tiktokapis.com/v2/oauth/token/"
 SECRET_NAME  = "TIKTOK_REFRESH_TOKEN"
+# Local copy for testing with `tiktok_post.py --file` — outside the repo, owner-only.
+LOCAL_TOKEN  = Path.home() / ".config" / "stockscore" / "tiktok_refresh_token"
 
 
 def main():
@@ -87,6 +93,12 @@ def main():
                         timeout=30).json().get("data", {}).get("user", {})
     who = info.get("display_name") or data.get("open_id")
     print(f"\nConnected TikTok account: {who}. Refresh token valid ~{days} days.")
+
+    LOCAL_TOKEN.parent.mkdir(parents=True, exist_ok=True)
+    LOCAL_TOKEN.touch(mode=0o600)
+    LOCAL_TOKEN.chmod(0o600)
+    LOCAL_TOKEN.write_text(refresh)
+    print(f"Saved locally to {LOCAL_TOKEN} (for local testing).")
 
     if shutil.which("gh"):
         subprocess.run(["gh", "secret", "set", SECRET_NAME, "--body", refresh], check=True)
