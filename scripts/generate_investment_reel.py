@@ -137,14 +137,18 @@ FOOTER_ZONE    = 90    # matches draw_footer's fixed offset from img.height
 TOP_SAFE_PAD   = 100   # same as the sector heatmap / VIX reels (proven on the live grid)
 
 HOOK_FADE_FRAMES   = 8    # short pop-in — the question should be readable almost from frame 0
-HOOK_HOLD_FRAMES   = 66   # ~2.2s — long enough to read, and the cover-frame grab lands here
+HOOK_HOLD_FRAMES   = 74   # ~2.5s — long enough to read, and the cover-frame grab lands here
 HOOK_OUT_FRAMES    = 8
-CHART_FRAMES       = 300  # ~10s for the line to draw the full period — slow enough to
-                          # follow the counter, with milestone markers keeping it moving
+CHART_FRAMES       = 450  # ~15s for the line to draw the full period — 10-20 years needs
+                          # this long to follow the counter without feeling rushed
 CHART_HOLD_FRAMES  = 10
 RESULT_FRAMES      = 14
 CTA_FRAMES         = 14
-END_HOLD_FRAMES    = 120  # ~4s holding on the finished frame (time to read the result + CTA)
+END_HOLD_FRAMES    = 112  # ~3.7s holding on the finished frame — result + CTA section is
+                          # 5s in all; any longer and people scroll before the CTA lands
+# Total 690 frames = 23s (shared by the head-to-head reel). Was 18s; the
+# chart was lengthened because it felt rushed — check average watch time in
+# Insights before going longer.
 POP_FRAMES         = 12   # counter 'pop' when a milestone is crossed
 
 # Chart geometry (final-frame coordinates)
