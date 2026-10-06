@@ -8,7 +8,7 @@ the TikTok app — where a trending sound and TikTok-specific caption can be
 added. That flow also doesn't need TikTok's app audit to be useful (direct
 posts from unaudited apps are forced private).
 
-    python scripts/tiktok_post.py --reel h2h          # or investment / vix / heatmap
+    python scripts/tiktok_post.py --reel h2h          # or investment / vix / heatmap / guess / race
     python scripts/tiktok_post.py --file some.mp4      # local test, no tracking
     python scripts/tiktok_post.py --status <publish_id> # where did an upload get to?
 
@@ -48,6 +48,8 @@ REELS = {
     "h2h":        (Path(__file__).parent / "_h2h_reel_manifest.json",        "h2h-reel"),
     "vix":        (Path(__file__).parent / "_vix_gauge_reel_manifest.json",  "vix-gauge-reel"),
     "heatmap":    (Path(__file__).parent / "_sector_heatmap_reel_manifest.json", "sector-heatmap-reel"),
+    "guess":      (Path(__file__).parent / "_guess_reel_manifest.json",      "guess-reel"),
+    "race":       (Path(__file__).parent / "_race_reel_manifest.json",       "race-reel"),
 }
 
 MIN_CHUNK = 5 * 1024 * 1024    # TikTok: chunks are 5-64 MB, files under 5 MB go up whole

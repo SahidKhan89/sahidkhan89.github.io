@@ -117,6 +117,9 @@ def build_matchup(m, years: int, end: datetime) -> dict | None:
         if len(ts) < 20 or ts[0] - start.timestamp() > 45 * 86400:
             print(f"  {sym}: history doesn't reach back {years}y — skipping")
             return None
+        if end.timestamp() - ts[-1] > 21 * 86400:
+            print(f"  {sym}: no recent prices (delisted?) — skipping")
+            return None
     tspy, pspy = inv.fetch_weekly(inv.BENCHMARK, start, end)
 
     def align(ts_other, px_other):

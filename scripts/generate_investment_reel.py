@@ -192,6 +192,9 @@ def build_story(ticker: str, years: int, end: datetime) -> dict | None:
     if len(ts) < 20 or ts[0] - start.timestamp() > 45 * 86400:
         print(f"  {ticker}: history doesn't reach back {years}y — skipping")
         return None
+    if end.timestamp() - ts[-1] > 21 * 86400:
+        print(f"  {ticker}: no recent prices (delisted?) — skipping")
+        return None
     bts, bpx = fetch_weekly(BENCHMARK, start, end)
 
     values = INVESTED * px / px[0]

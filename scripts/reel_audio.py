@@ -22,7 +22,7 @@ from pathlib import Path
 
 AUDIO_DIR = Path(__file__).parent.parent / "assets" / "audio"
 
-SLOTS = {"vix": 0, "heatmap": 1, "investment": 2, "h2h": 3}
+SLOTS = {"vix": 0, "heatmap": 1, "investment": 2, "h2h": 3, "guess": 4, "race": 5}
 _PHI = (math.sqrt(5) - 1) / 2
 
 
@@ -47,7 +47,7 @@ def pick_track(min_seconds: float, slot: str, day: date | None = None) -> Path:
     eligible.sort(key=lambda p: hashlib.sha1(p.name.encode()).hexdigest())
 
     day = day or datetime.now(timezone.utc).date()
-    x = (day.toordinal() * _PHI + SLOTS.get(slot, 0) * 0.25) % 1.0
+    x = (day.toordinal() * _PHI + SLOTS.get(slot, 0) / len(SLOTS)) % 1.0
     return eligible[int(x * len(eligible))]
 
 
@@ -77,7 +77,7 @@ def encode_video(frame_dir: Path, out_path: Path, fps: int, n_frames: int, slot:
 if __name__ == "__main__":
     # Preview the next fortnight's picks for each reel type.
     from datetime import timedelta
-    lengths = {"vix": 7.6, "heatmap": 15, "investment": 18, "h2h": 18}
+    lengths = {"vix": 7.6, "heatmap": 15, "investment": 23, "h2h": 23, "guess": 22, "race": 25}
     today = datetime.now(timezone.utc).date()
     for i in range(14):
         d = today + timedelta(days=i)

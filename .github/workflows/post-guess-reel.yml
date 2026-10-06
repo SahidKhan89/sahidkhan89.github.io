@@ -1,10 +1,9 @@
-name: Post $1,000 Invested Reel to Instagram
+name: Post Guess-the-Stock Reel to Instagram
 
 on:
   schedule:
-    - cron: '37 15 * * 3'   # Wednesdays at 15:37 UTC (4:37pm BST / 3:37pm GMT in winter) —
-                             # evergreen content (Sunday is the race reel, Saturday the
-                             # head-to-head, Thursday guess-the-stock); offset off :00 to avoid
+    - cron: '37 15 * * 4'   # Thursdays at 15:37 UTC (4:37pm BST / 3:37pm GMT in winter) — the
+                             # only weekday without another reel; offset off :00 to avoid
                              # GitHub's on-the-hour schedule congestion
   workflow_dispatch:
     inputs:
@@ -14,7 +13,7 @@ on:
         default: ''
 
 jobs:
-  post-investment-reel:
+  post-guess-reel:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -37,7 +36,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Generate reel
-        run: python scripts/generate_investment_reel.py
+        run: python scripts/generate_guess_reel.py
         env:
           FORCE_TICKER: ${{ github.event.inputs.ticker }}
 
@@ -45,13 +44,13 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add images/investment-reel/ logos/
-          git diff --staged --quiet || git commit -m "chore: add investment reel [skip ci]"
+          git add images/guess-reel/ logos/
+          git diff --staged --quiet || git commit -m "chore: add guess-the-stock reel [skip ci]"
           git pull --rebase origin main
           git push
 
       - name: Post to social media
-        run: python scripts/post_investment_reel.py
+        run: python scripts/post_guess_reel.py
         env:
           ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
           IG_ACCESS_TOKEN:      ${{ secrets.IG_ACCESS_TOKEN }}
@@ -64,7 +63,7 @@ jobs:
       # failure doesn't fail the run — Instagram has already posted by now.
       - name: Send to TikTok drafts
         continue-on-error: true
-        run: python scripts/tiktok_post.py --reel investment
+        run: python scripts/tiktok_post.py --reel guess
         env:
           TIKTOK_CLIENT_KEY:    ${{ secrets.TIKTOK_CLIENT_KEY }}
           TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
@@ -75,7 +74,7 @@ jobs:
       - name: Commit posted tracking
         if: always()
         run: |
-          git add data/posted_investment_reel.json data/posted_tiktok.json
-          git diff --staged --quiet || git commit -m "chore: update posted investment reel [skip ci]"
+          git add data/posted_guess_reel.json data/posted_tiktok.json
+          git diff --staged --quiet || git commit -m "chore: update posted guess-the-stock reel [skip ci]"
           git pull --rebase origin main
           git push
