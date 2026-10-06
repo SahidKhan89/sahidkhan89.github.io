@@ -68,9 +68,23 @@ jobs:
           GITHUB_REPOSITORY:    ${{ github.repository }}
           GITHUB_REF_NAME:      ${{ github.ref_name }}
 
+      # Sends the reel to TikTok as a draft (publish it from the TikTok app).
+      # Skips if no reel was rendered this run, and a TikTok failure doesn't
+      # fail the run — the other platforms have already posted by now.
+      - name: Send to TikTok drafts
+        continue-on-error: true
+        run: python scripts/tiktok_post.py --reel vix
+        env:
+          TIKTOK_CLIENT_KEY:    ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          GH_PAT:               ${{ secrets.GH_PAT }}
+          GH_REPO:              ${{ github.repository }}
+
       - name: Commit posted tracking
+        if: always()
         run: |
-          git add data/posted_vix_gauge.json
+          git add data/posted_vix_gauge.json data/posted_tiktok.json
           git diff --staged --quiet || git commit -m "chore: update posted VIX gauge [skip ci]"
           git pull --rebase origin main
           git push
