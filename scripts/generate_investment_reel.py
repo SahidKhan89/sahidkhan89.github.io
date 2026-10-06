@@ -25,8 +25,6 @@ Requires ffmpeg on PATH (invoked via subprocess — not a pip dependency).
 import argparse
 import json
 import os
-import random
-import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -38,11 +36,11 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).parent))
 import social_style as ss
+import reel_audio
 from logos import load_logo_pil
 
 ROOT          = Path(__file__).parent.parent
 OUTPUT_DIR    = ROOT / "images" / "investment-reel"
-AUDIO_DIR     = ROOT / "assets" / "audio"
 REEL_MANIFEST = Path(__file__).parent / "_investment_reel_manifest.json"
 TRACKING      = ROOT / "data" / "posted_investment_reel.json"
 
@@ -132,18 +130,6 @@ CANDIDATES = {
 ROTATION_COOLDOWN = 30   # don't repeat a ticker within its last N posts
 BENCHMARK = "SPY"        # S&P 500 total-return proxy (dividends included)
 INVESTED  = 1000.0
-
-AUDIO_CREDITS = {
-    "Game Time.mp3":               "Game Time",
-    "Golden Brown.mp3":            "Golden Brown",
-    "Just the Way You Are.mp3":    "Just the Way You Are",
-    "Stupid Song.mp3":             "Stupid Song",
-    "summer on the inside.mp3":    "summer on the inside",
-    "Young Hearts Run Free.mp3":   "Young Hearts Run Free",
-    "Delamourr.mp3":               "Delamourr",
-    "Krimsonn.mp3":                "Krimsonn",
-    "leveluploc.mp3":              "leveluploc",
-}
 
 FPS            = 30
 REEL_W, REEL_H = 1080, 1920
@@ -630,43 +616,6 @@ def render_frames(story: dict, out_dir: Path) -> int:
     return frame_idx
 
 
-def _audio_duration(path: Path) -> float:
-    try:
-        out = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
-            check=True, capture_output=True, text=True).stdout
-        return float(out.strip())
-    except Exception:
-        return 0.0
-
-
-def encode_video(frame_dir: Path, out_path: Path, fps: int, n_frames: int) -> str:
-    duration   = n_frames / fps
-    fade_start = max(0.0, duration - 1.0)
-
-    # Several library tracks are shorter than this reel, and -shortest would
-    # truncate the video to the audio — so prefer a track that covers the
-    # whole thing, and loop the audio input as a safety net otherwise.
-    long_enough = [t for t in sorted(AUDIO_CREDITS)
-                   if _audio_duration(AUDIO_DIR / t) >= duration]
-    track_name = random.choice(long_enough or sorted(AUDIO_CREDITS))
-    track_path = AUDIO_DIR / track_name
-
-    cmd = [
-        "ffmpeg", "-y", "-framerate", str(fps),
-        "-i", str(frame_dir / "frame_%05d.png"),
-        "-stream_loop", "-1", "-i", str(track_path),
-        "-t", f"{duration:.3f}",
-        "-af", f"afade=t=out:st={fade_start:.3f}:d=1.0",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "160k",
-        "-shortest",
-        str(out_path),
-    ]
-    subprocess.run(cmd, check=True, capture_output=True)
-    return AUDIO_CREDITS[track_name]
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", help="YYYY-MM-DD label override (defaults to today, UTC)")
@@ -709,7 +658,7 @@ def main():
         tmp_path = Path(tmp)
         n_frames = render_frames(story, tmp_path)
         print(f"  rendered {n_frames} frames @ {FPS}fps (~{n_frames / FPS:.1f}s)")
-        audio_credit = encode_video(tmp_path, out_path, FPS, n_frames)
+        audio_credit = reel_audio.encode_video(tmp_path, out_path, FPS, n_frames, "investment")
         print(f"  audio: {audio_credit}")
 
     manifest = {k: v for k, v in story.items() if not k.startswith("_")}

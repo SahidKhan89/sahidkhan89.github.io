@@ -27,8 +27,6 @@ underlying data is always whatever the backend currently has cached.
 import argparse
 import json
 import os
-import random
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -37,25 +35,12 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).parent))
 import social_style as ss
+import reel_audio
 import generate_sector_heatmap_card as card
 
 ROOT          = Path(__file__).parent.parent
 OUTPUT_DIR    = ROOT / "images" / "sector-heatmap-reel"
-AUDIO_DIR     = ROOT / "assets" / "audio"
 REEL_MANIFEST = Path(__file__).parent / "_sector_heatmap_reel_manifest.json"
-
-# Background track picked at random each run for variety (see assets/audio/).
-AUDIO_CREDITS = {
-    "Game Time.mp3":               "Game Time",
-    "Golden Brown.mp3":            "Golden Brown",
-    "Just the Way You Are.mp3":    "Just the Way You Are",
-    "Stupid Song.mp3":             "Stupid Song",
-    "summer on the inside.mp3":    "summer on the inside",
-    "Young Hearts Run Free.mp3":   "Young Hearts Run Free",
-    "Delamourr.mp3":               "Delamourr",
-    "Krimsonn.mp3":                "Krimsonn",
-    "leveluploc.mp3":              "leveluploc",
-}
 
 FPS            = 30
 REEL_W, REEL_H = 1080, 1920
@@ -363,29 +348,6 @@ def render_frames(human_date: str, sectors: list, out_dir: Path) -> int:
     return frame_idx
 
 
-def encode_video(frame_dir: Path, out_path: Path, fps: int, n_frames: int) -> str:
-    """Encodes the frames and muxes in a randomly-picked background track,
-    trimmed to the video's own length with a 1s fade-out at the tail.
-    Returns that track's attribution line."""
-    track_name = random.choice(sorted(AUDIO_CREDITS))
-    track_path = AUDIO_DIR / track_name
-    duration   = n_frames / fps
-    fade_start = max(0.0, duration - 1.0)
-
-    cmd = [
-        "ffmpeg", "-y", "-framerate", str(fps),
-        "-i", str(frame_dir / "frame_%05d.png"),
-        "-stream_loop", "-1", "-i", str(track_path),
-        "-t", f"{duration:.3f}",
-        "-af", f"afade=t=out:st={fade_start:.3f}:d=1.0",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "160k",
-        str(out_path),
-    ]
-    subprocess.run(cmd, check=True, capture_output=True)
-    return AUDIO_CREDITS[track_name]
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", help="YYYY-MM-DD label override, defaults to the backend's as_of session")
@@ -412,7 +374,7 @@ def main():
         tmp_path = Path(tmp)
         n_frames = render_frames(human_date, sectors, tmp_path)
         print(f"  rendered {n_frames} frames @ {FPS}fps (~{n_frames / FPS:.1f}s)")
-        audio_credit = encode_video(tmp_path, out_path, FPS, n_frames)
+        audio_credit = reel_audio.encode_video(tmp_path, out_path, FPS, n_frames, "heatmap")
         print(f"  audio: {audio_credit}")
 
     REEL_MANIFEST.write_text(json.dumps(

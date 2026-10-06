@@ -33,6 +33,7 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).parent))
 import social_style as ss
+import reel_audio
 import generate_investment_reel as inv
 from logos import load_logo_pil
 
@@ -522,7 +523,7 @@ def main():
         tmp_path = Path(tmp)
         n_frames = render_frames(story, tmp_path)
         print(f"  rendered {n_frames} frames @ {FPS}fps (~{n_frames / FPS:.1f}s)")
-        audio_credit = inv.encode_video(tmp_path, out_path, FPS, n_frames)
+        audio_credit = reel_audio.encode_video(tmp_path, out_path, FPS, n_frames, "h2h")
         print(f"  audio: {audio_credit}")
 
     manifest = {k: v for k, v in story.items() if not k.startswith("_")}
