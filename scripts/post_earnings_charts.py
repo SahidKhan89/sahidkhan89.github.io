@@ -17,13 +17,13 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
-from social_post import post_to_threads, post_to_instagram, post_to_facebook
+from social_post import post_to_threads, post_to_instagram
 
 MANIFEST  = Path(__file__).parent / "_post_manifest.json"
 TRACKING  = Path(__file__).parent.parent / "data" / "posted_earnings.json"
 MAX_HISTORY = 500
 # Earnings season can bring 15-25 watchlist reporters in a day — every chart
-# still goes to Threads/Facebook, but Instagram gets at most this many per
+# still goes to Threads, but Instagram gets at most this many per
 # (UTC) day, taken in manifest order (watchlist order, mega-caps first).
 IG_MAX_PER_DAY = 1
 REPO      = os.environ.get("GITHUB_REPOSITORY", "sahidkhan89/sahidkhan89.github.io")
@@ -170,8 +170,6 @@ def main():
                        os.environ.get("THREADS_USER_ID"))
     has_ig      = bool(os.environ.get("IG_ACCESS_TOKEN") and
                        os.environ.get("IG_USER_ID"))
-    has_fb      = bool(os.environ.get("FB_PAGE_ACCESS_TOKEN") and
-                       os.environ.get("FB_PAGE_ID"))
 
     new_entries = [e for e in manifest if dry_run or posting_key(e) not in posted]
     skipped     = len(manifest) - len(new_entries)
@@ -184,8 +182,7 @@ def main():
     mode_label = "DRY RUN" if dry_run else "Posting"
     print(f"{mode_label}: {len(new_entries)} chart(s) "
           f"[Threads={'yes' if has_threads else 'no'}, "
-          f"Instagram={'yes' if has_ig else 'no'}, "
-          f"Facebook={'yes' if has_fb else 'no'}]")
+          f"Instagram={'yes' if has_ig else 'no'}]")
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     ig_dates = tracking.get("ig_posted_dates", [])
@@ -196,7 +193,7 @@ def main():
         ticker  = entry["ticker"]
         img_url = image_url(ticker)
 
-        # One LLM call reworded intro, shared across Threads/IG/FB captions.
+        # One LLM call reworded intro, shared across Threads/IG captions.
         # Falls back to the static template on any failure.
         reworded        = llm_caption(entry, 500)
         threads_caption = reworded or build_caption(entry, 500)
@@ -234,14 +231,6 @@ def main():
                 ig_dates.append(today)
             except Exception as e:
                 print(f"  ✗ Instagram: {e}")
-
-        if has_fb:
-            try:
-                fbid = post_to_facebook(ig_caption, img_url)
-                print(f"  ✓ Facebook: {fbid}")
-                success = True
-            except Exception as e:
-                print(f"  ✗ Facebook: {e}")
 
         if success:
             posted.add(posting_key(entry))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 post_earnings_calendar.py — Post the generated earnings-calendar card to
-Threads, Instagram and Facebook.
+Threads and Instagram. Facebook gets it via Instagram's auto-share to the Page.
 
 Reads the manifest written by generate_earnings_calendar_card.py and posts it
 using a raw.githubusercontent.com URL (available immediately after the commit
@@ -18,7 +18,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
-from social_post import post_to_threads, post_to_instagram, post_to_facebook
+from social_post import post_to_threads, post_to_instagram
 
 MANIFEST    = Path(__file__).parent / "_earnings_calendar_manifest.json"
 TRACKING    = Path(__file__).parent.parent / "data" / "posted_earnings_calendar.json"
@@ -145,12 +145,10 @@ def main():
                        os.environ.get("THREADS_USER_ID"))
     has_ig      = bool(os.environ.get("IG_ACCESS_TOKEN") and
                        os.environ.get("IG_USER_ID"))
-    has_fb      = bool(os.environ.get("FB_PAGE_ACCESS_TOKEN") and
-                       os.environ.get("FB_PAGE_ID"))
 
     img_url         = image_url(entry["date"])
 
-    # One LLM call reworded intro, shared across Threads/IG/FB captions.
+    # One LLM call reworded intro, shared across Threads/IG captions.
     # Falls back to the static template on any failure.
     reworded        = llm_caption(entry, 500)
     threads_caption = reworded or build_caption(entry, 500)
@@ -184,14 +182,6 @@ def main():
             success = True
         except Exception as e:
             print(f"  ✗ Instagram: {e}")
-
-    if has_fb:
-        try:
-            fbid = post_to_facebook(ig_caption, img_url)
-            print(f"  ✓ Facebook: {fbid}")
-            success = True
-        except Exception as e:
-            print(f"  ✗ Facebook: {e}")
 
     if success:
         posted.add(entry["date"])

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-post_sector_heatmap.py — Post the generated sector heatmap card to Threads,
-Instagram and Facebook.
+post_sector_heatmap.py — Post the generated sector heatmap card to Threads
+and Instagram. Facebook gets it via Instagram's auto-share to the Page.
 
-Instagram posts the build-up reel (scripts/generate_sector_heatmap_reel.py's
-output) as a Reel when images/sector-heatmap-reel/<date>.mp4 exists, falling
-back to the static image otherwise. Threads and Facebook always use the
-static card — their reel/video publishing flows aren't wired up yet.
+Posts the build-up reel (scripts/generate_sector_heatmap_reel.py's output) —
+as a Reel on Instagram, a video post on Threads — when
+images/sector-heatmap-reel/<date>.mp4 exists, falling back to the static image
+otherwise.
 
 Reads the manifest written by generate_sector_heatmap_card.py and posts it
 using a raw.githubusercontent.com URL. Dedupes against
@@ -24,7 +24,8 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
-from social_post import post_to_threads, post_to_instagram, post_to_instagram_reel, post_to_facebook
+from social_post import (post_to_threads, post_to_threads_video, post_to_instagram,
+                         post_to_instagram_reel)
 import generate_sector_heatmap_reel as reel
 
 ROOT          = Path(__file__).parent.parent
@@ -191,14 +192,12 @@ def main():
                        os.environ.get("THREADS_USER_ID"))
     has_ig      = bool(os.environ.get("IG_ACCESS_TOKEN") and
                        os.environ.get("IG_USER_ID"))
-    has_fb      = bool(os.environ.get("FB_PAGE_ACCESS_TOKEN") and
-                       os.environ.get("FB_PAGE_ID"))
 
     img_url         = image_url(entry["date"])
     has_reel        = reel_exists(entry["date"])
     vid_url         = video_url(entry["date"]) if has_reel else None
 
-    # One LLM call reworded intro, shared across Threads/IG/FB captions.
+    # One LLM call reworded intro, shared across Threads/IG captions.
     # Falls back to the static template on any failure.
     reworded        = llm_caption(entry, 500)
     threads_caption = reworded or build_caption(entry, 500)
@@ -207,7 +206,7 @@ def main():
     if dry_run:
         print(f"DRY RUN — {entry['date']}")
         print(f"  Image: {img_url}")
-        print(f"  Video: {vid_url if has_reel else '(none — falling back to image for IG)'}")
+        print(f"  Video: {vid_url if has_reel else '(none — falling back to image)'}")
         print("\n  ── Threads caption (max 500) ──")
         print(threads_caption)
         print("\n  ── Instagram caption (max 2200) ──")
@@ -222,8 +221,12 @@ def main():
 
     if has_threads:
         try:
-            tid = post_to_threads(threads_caption, img_url)
-            print(f"  ✓ Threads: {tid}")
+            if has_reel:
+                tid = post_to_threads_video(threads_caption, vid_url)
+                print(f"  ✓ Threads (video): {tid}")
+            else:
+                tid = post_to_threads(threads_caption, img_url)
+                print(f"  ✓ Threads: {tid}")
             success = True
         except Exception as e:
             print(f"  ✗ Threads: {e}")
@@ -244,14 +247,6 @@ def main():
             success = True
         except Exception as e:
             print(f"  ✗ Instagram: {e}")
-
-    if has_fb:
-        try:
-            fbid = post_to_facebook(ig_caption, img_url)
-            print(f"  ✓ Facebook: {fbid}")
-            success = True
-        except Exception as e:
-            print(f"  ✗ Facebook: {e}")
 
     if success:
         posted.add(entry["date"])

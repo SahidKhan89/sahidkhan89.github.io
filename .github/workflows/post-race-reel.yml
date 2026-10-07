@@ -1,4 +1,4 @@
-name: Post $1,000 Race Reel to Instagram
+name: Post $1,000 Race Reel to Instagram & Threads
 
 on:
   schedule:
@@ -55,12 +55,15 @@ jobs:
           ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
           IG_ACCESS_TOKEN:      ${{ secrets.IG_ACCESS_TOKEN }}
           IG_USER_ID:           ${{ secrets.IG_USER_ID }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID:      ${{ secrets.THREADS_USER_ID }}
           GITHUB_REPOSITORY:    ${{ github.repository }}
           GITHUB_REF_NAME:      ${{ github.ref_name }}
 
       # Sends the same reel to TikTok as a draft (publish it from the TikTok
       # app). Skips itself if the TikTok secrets aren't set, and a TikTok
-      # failure doesn't fail the run — Instagram has already posted by now.
+      # failure doesn't fail the run — Instagram and Threads have already
+      # posted by now.
       - name: Send to TikTok drafts
         continue-on-error: true
         run: python scripts/tiktok_post.py --reel race

@@ -118,7 +118,7 @@ function buildCaption(article, maxChars) {
 // anything that would come out cropped instead of posting a mangled version.
 
 const TITLE_IMAGE_LIMIT = 90; // conservative guess at the card renderer's wrap limit — tune after seeing real crops
-const CAPTION_LIMITS    = [500, 2200]; // Threads/Reddit, then Instagram/Facebook
+const CAPTION_LIMITS    = [500, 2200]; // Threads/Reddit, then Instagram
 
 function captionTruncated(article, maxChars) {
   const title    = article.title   || '';
@@ -311,22 +311,6 @@ async function postToReddit(article, caption, imageUrl) {
   return submitData?.json?.data?.url ?? 'posted';
 }
 
-// ─── Facebook Page ─────────────────────────────────────────────────────────────
-
-async function postToFacebook(caption, imageUrl) {
-  const token  = process.env.FB_PAGE_ACCESS_TOKEN;
-  const pageId = process.env.FB_PAGE_ID;
-
-  const resp = await fetch(`https://graph.facebook.com/v23.0/${pageId}/photos`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ url: imageUrl, caption, access_token: token }),
-  });
-  const data = await resp.json();
-  if (data.error) throw new Error(`Facebook post error: ${data.error.message}`);
-  return data.post_id || data.id;
-}
-
 // ─── Instagram ────────────────────────────────────────────────────────────────
 
 async function postToInstagram(caption, imageUrl) {
@@ -432,16 +416,12 @@ async function main() {
       ? withRetry('Instagram', () => postToInstagram(igText, activeImageUrl))
       : Promise.resolve('skipped — no credentials'),
 
-    (process.env.FB_PAGE_ACCESS_TOKEN && process.env.FB_PAGE_ID)
-      ? withRetry('Facebook', () => postToFacebook(igText, activeImageUrl))
-      : Promise.resolve('skipped — no credentials'),
-
     (process.env.REDDIT_CLIENT_ID && process.env.REDDIT_SUBREDDIT)
       ? withRetry('Reddit', () => postToReddit(article, redditText, activeImageUrl))
       : Promise.resolve('skipped — no credentials'),
   ]);
 
-  const platforms = ['Threads', 'Instagram', 'Facebook', 'Reddit'];
+  const platforms = ['Threads', 'Instagram', 'Reddit'];  // Facebook gets Instagram's auto-share to the Page
   let anySuccess = false;
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') {

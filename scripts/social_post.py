@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-social_post.py — shared Threads / Instagram / Facebook posting functions.
+social_post.py — shared Threads / Instagram posting functions (Facebook
+Page gets everything via Instagram's auto-share, so isn't posted to directly).
 
 Extracted from post_earnings_charts.py so the earnings-calendar, analyst-ratings
 and dividends-calendar posters can reuse the same posting logic instead of each
@@ -37,6 +38,54 @@ def post_to_threads(text: str, img_url: str) -> str:
     pub_data = pub.json()
     if "error" in pub_data:
         raise RuntimeError(f"Threads publish: {pub_data['error']['message']}")
+    return pub_data["id"]
+
+
+def post_to_threads_video(text: str, video_url: str, poll_interval: int = 5,
+                          timeout: int = 300) -> str:
+    """Like post_to_threads but for video — Threads processes video async, so
+    (as with IG reels) the container has to reach FINISHED before publishing."""
+    token   = os.environ["THREADS_ACCESS_TOKEN"]
+    user_id = os.environ["THREADS_USER_ID"]
+    base    = f"https://graph.threads.net/v1.0/{user_id}"
+
+    resp = requests.post(f"{base}/threads", json={
+        "media_type":   "VIDEO",
+        "video_url":    video_url,
+        "text":         text,
+        "access_token": token,
+    })
+    data = resp.json()
+    if "error" in data:
+        raise RuntimeError(f"Threads video create: {data['error']['message']}")
+    creation_id = data["id"]
+
+    deadline = time.time() + timeout
+    status = None
+    while time.time() < deadline:
+        time.sleep(poll_interval)
+        check = requests.get(
+            f"https://graph.threads.net/v1.0/{creation_id}",
+            params={"fields": "status,error_message", "access_token": token},
+        )
+        cd = check.json()
+        if "error" in cd:
+            raise RuntimeError(f"Threads video status: {cd['error']['message']}")
+        status = cd.get("status")
+        if status == "FINISHED":
+            break
+        if status in ("ERROR", "EXPIRED"):
+            raise RuntimeError(f"Threads video processing failed: {cd.get('error_message', status)}")
+    else:
+        raise RuntimeError(f"Threads video processing timed out after {timeout}s (last status: {status})")
+
+    pub = requests.post(f"{base}/threads_publish", json={
+        "creation_id":  creation_id,
+        "access_token": token,
+    })
+    pub_data = pub.json()
+    if "error" in pub_data:
+        raise RuntimeError(f"Threads video publish: {pub_data['error']['message']}")
     return pub_data["id"]
 
 
@@ -121,17 +170,3 @@ def post_to_instagram_reel(caption: str, video_url: str, thumb_offset_ms: int | 
     if "error" in pd_:
         raise RuntimeError(f"IG reel publish: {pd_['error']['message']}")
     return pd_["id"]
-
-
-def post_to_facebook(caption: str, img_url: str) -> str:
-    token   = os.environ["FB_PAGE_ACCESS_TOKEN"]
-    page_id = os.environ["FB_PAGE_ID"]
-
-    resp = requests.post(
-        f"https://graph.facebook.com/v23.0/{page_id}/photos",
-        json={"url": img_url, "caption": caption, "access_token": token},
-    )
-    data = resp.json()
-    if "error" in data:
-        raise RuntimeError(f"Facebook post: {data['error']['message']}")
-    return data.get("post_id", data.get("id"))
