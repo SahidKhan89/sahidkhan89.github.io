@@ -1,9 +1,8 @@
 name: Post Earnings Calendar to Social Media
 
 on:
-  schedule:
-    - cron: '8 5 * * 1-5'    # weekdays at 05:08 UTC (5:08am BST / 4:08am GMT) — before US market
-                              # open, offset off :00 to avoid GitHub's on-the-hour schedule congestion
+  # Scheduled externally by cron-job.org (POSTs workflow_dispatch) — GitHub's own
+  # cron delayed or dropped most runs. Weekdays 05:08 UTC, before the US open.
   workflow_dispatch:
     inputs:
       date:

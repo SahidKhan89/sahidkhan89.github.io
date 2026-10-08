@@ -1,10 +1,9 @@
 name: Post $1,000 Race Reel to Instagram & Threads
 
 on:
-  schedule:
-    - cron: '37 15 * * 0'   # Sundays at 15:37 UTC (4:37pm BST / 3:37pm GMT in winter) — 24 race
-                             # groups = ~6 months before a repeat; offset off :00 to avoid
-                             # GitHub's on-the-hour schedule congestion
+  # Scheduled externally by cron-job.org (POSTs workflow_dispatch) — GitHub's own
+  # cron delayed or dropped most runs. Sundays 15:37 UTC: 24 race groups = ~6
+  # months before a repeat.
   workflow_dispatch:
     inputs:
       race:

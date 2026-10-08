@@ -1,11 +1,9 @@
 name: Post Head-to-Head Reel to Instagram & Threads
 
 on:
-  schedule:
-    - cron: '37 15 * * 6'   # Saturdays at 15:37 UTC (4:37pm BST / 3:37pm GMT in winter) — one
-                             # matchup a week (24 in the rotation = ~6 months); the single-stock
-                             # reel runs Wed/Sun. Offset off :00 to avoid GitHub's
-                             # on-the-hour schedule congestion
+  # Scheduled externally by cron-job.org (POSTs workflow_dispatch) — GitHub's own
+  # cron delayed or dropped most runs. Saturdays 15:37 UTC: one matchup a week
+  # (24 in the rotation = ~6 months).
   workflow_dispatch:
     inputs:
       pair:

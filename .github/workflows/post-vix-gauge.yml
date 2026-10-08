@@ -1,11 +1,10 @@
 name: Post VIX Fear Gauge to Social Media
 
 on:
-  schedule:
-    - cron: '47 15 * * 1'     # Mondays at 15:47 UTC — weekend news tends to show up in Monday's
-                               # VIX. Mid-morning in New York year-round (11:47am EDT / 10:47am
-                               # EST) so the reading has settled after the open; offset off :00
-                               # to avoid GitHub's on-the-hour schedule congestion
+  # Scheduled externally by cron-job.org (POSTs workflow_dispatch) — GitHub's own
+  # cron delayed or dropped most runs. Mondays 15:47 UTC: weekend news tends to
+  # show up in Monday's VIX, and it's mid-morning in New York year-round so the
+  # reading has settled after the open.
   workflow_dispatch:
     inputs:
       date:

@@ -1,11 +1,9 @@
 name: Post $1,000 Invested Reel to Instagram & Threads
 
 on:
-  schedule:
-    - cron: '37 15 * * 3'   # Wednesdays at 15:37 UTC (4:37pm BST / 3:37pm GMT in winter) —
-                             # evergreen content (Sunday is the race reel, Saturday the
-                             # head-to-head, Thursday guess-the-stock); offset off :00 to avoid
-                             # GitHub's on-the-hour schedule congestion
+  # Scheduled externally by cron-job.org (POSTs workflow_dispatch) — GitHub's own
+  # cron delayed or dropped most runs. Wednesdays 15:37 UTC (Thu guess, Sat
+  # head-to-head, Sun race).
   workflow_dispatch:
     inputs:
       ticker:

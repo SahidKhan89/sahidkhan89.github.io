@@ -1,11 +1,9 @@
 name: Post Analyst Rating to Social Media
 
 on:
-  schedule:
-    - cron: '33 18 * * 2'     # Tuesdays at 18:33 UTC (~6:33pm BST / 5:33pm GMT in winter) — Tuesday
-                               # had the most upgrade/downgrade actions over a 6-week sample, so the
-                               # fullest card; offset off :00 to avoid GitHub's on-the-hour
-                               # schedule congestion
+  # Scheduled externally by cron-job.org (POSTs workflow_dispatch) — GitHub's own
+  # cron delayed or dropped most runs. Tuesdays 18:33 UTC: Tuesday had the most
+  # upgrade/downgrade actions over a 6-week sample, so the fullest card.
   workflow_dispatch:
     inputs:
       date:
