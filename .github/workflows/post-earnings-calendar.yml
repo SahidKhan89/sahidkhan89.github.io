@@ -45,8 +45,14 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add images/earnings-calendar/
           git diff --staged --quiet || git commit -m "chore: add earnings calendar card [skip ci]"
-          git pull --rebase origin main
-          git push
+          # Retried: another workflow can push in between, and GitHub occasionally
+          # rejects a push it has actually applied (seen on the CNBC workflow).
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then break; fi
+            git rebase --abort 2>/dev/null || true
+            if [ "$i" = 3 ]; then exit 1; fi
+            sleep $((i * 5))
+          done
 
       - name: Post to social media
         run: python scripts/post_earnings_calendar.py
@@ -62,5 +68,11 @@ jobs:
         run: |
           git add data/posted_earnings_calendar.json
           git diff --staged --quiet || git commit -m "chore: update posted earnings calendar [skip ci]"
-          git pull --rebase origin main
-          git push
+          # Retried: another workflow can push in between, and GitHub occasionally
+          # rejects a push it has actually applied (seen on the CNBC workflow).
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then break; fi
+            git rebase --abort 2>/dev/null || true
+            if [ "$i" = 3 ]; then exit 1; fi
+            sleep $((i * 5))
+          done

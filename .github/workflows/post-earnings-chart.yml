@@ -1,11 +1,13 @@
 name: Post Earnings Charts to Social Media
 
 on:
-  schedule:
-    - cron: '41 14 * * 1-5'   # weekdays at 14:41 UTC (2:41pm BST / 1:41pm GMT) — offset off :00 to
-                               # avoid GitHub's on-the-hour schedule congestion
-    - cron: '51 22 * * 1-5'   # weekdays at 22:51 UTC (11:51pm BST / 10:51pm GMT) — offset off :00
-                               # to avoid GitHub's on-the-hour schedule congestion
+  # Schedule paused (2026-10-08) — earnings content is being posted manually for
+  # now. Uncomment to resume; workflow_dispatch below still works for one-offs.
+  # schedule:
+  #   - cron: '41 14 * * 1-5'   # weekdays at 14:41 UTC (2:41pm BST / 1:41pm GMT) — offset off :00 to
+  #                              # avoid GitHub's on-the-hour schedule congestion
+  #   - cron: '51 22 * * 1-5'   # weekdays at 22:51 UTC (11:51pm BST / 10:51pm GMT) — offset off :00
+  #                              # to avoid GitHub's on-the-hour schedule congestion
   workflow_dispatch:
     inputs:
       tickers:
@@ -45,8 +47,14 @@ jobs:
           git rm --cached scripts/_post_manifest.json 2>/dev/null || true
           git add images/earnings/ .gitignore
           git diff --staged --quiet || git commit -m "chore: add earnings charts [skip ci]"
-          git pull --rebase origin main
-          git push
+          # Retried: another workflow can push in between, and GitHub occasionally
+          # rejects a push it has actually applied (seen on the CNBC workflow).
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then break; fi
+            git rebase --abort 2>/dev/null || true
+            if [ "$i" = 3 ]; then exit 1; fi
+            sleep $((i * 5))
+          done
 
       - name: Post to social media
         run: python scripts/post_earnings_charts.py
@@ -62,5 +70,11 @@ jobs:
         run: |
           git add data/posted_earnings.json
           git diff --staged --quiet || git commit -m "chore: update posted earnings [skip ci]"
-          git pull --rebase origin main
-          git push
+          # Retried: another workflow can push in between, and GitHub occasionally
+          # rejects a push it has actually applied (seen on the CNBC workflow).
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then break; fi
+            git rebase --abort 2>/dev/null || true
+            if [ "$i" = 3 ]; then exit 1; fi
+            sleep $((i * 5))
+          done

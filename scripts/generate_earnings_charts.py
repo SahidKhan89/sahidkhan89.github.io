@@ -26,7 +26,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).parent))
 from sec_trend_chart import (
-    fetch_facts, build_trend, build_figure, apply_rounded_header,
+    fetch_facts, build_trend, build_figure,
     load_logo, load_brand_logo, fmt_money, pct_chg, quarter_label, C, DPI,
 )
 
@@ -399,7 +399,6 @@ def generate_chart(ticker: str, cik: str, company: str, out_path: Path) -> list 
         )
         fig.savefig(str(out_path), dpi=DPI, facecolor=C["bg"])
         plt.close(fig)
-        apply_rounded_header(str(out_path))
         return quarters
     except Exception as e:
         print(f"  chart generation failed: {e}")
