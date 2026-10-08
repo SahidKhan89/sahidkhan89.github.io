@@ -401,6 +401,10 @@ def render_frames(story: dict, out_dir: Path) -> int:
     # 2. Race
     running_max = np.maximum.accumulate(np.maximum(va, vb))
     chart_base = base.copy()
+    series_title = inv.render_series_title(
+        f"$1,000 head-to-head · {story['years']} years",
+        f"{story['a']['name']} vs {story['b']['name']}: who wins?")
+    chart_base.paste(series_title, (0, inv.SERIES_TITLE_Y), series_title)
     chart_base.paste(names, (0, NAMES_Y), names)
 
     def value_font(size):

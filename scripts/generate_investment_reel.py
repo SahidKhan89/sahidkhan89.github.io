@@ -333,6 +333,31 @@ def render_hook_overlay(story: dict, logo: Image.Image | None) -> Image.Image:
     return overlay.crop((0, 0, REEL_W, y))
 
 
+SERIES_TITLE_Y = TOP_SAFE_PAD + 5   # fills the band above the title row
+
+
+def render_series_title(label: str, question: str) -> Image.Image:
+    """Persistent two-line title for the chart phase of every reel: a teal
+    tracked-caps series label (same eyebrow style as the image cards'
+    draw_header) over a question that stays up until the result answers it,
+    so anyone who joins after the hook card still knows what they're watching.
+    Shared by the $1,000, head-to-head, guess and race reels."""
+    overlay = Image.new("RGBA", (REEL_W, 115), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    lf = ss.font(True, 30)
+    text = label.upper()
+    tracking = 4
+    lw = sum(draw.textbbox((0, 0), ch, font=lf)[2] + tracking for ch in text) - tracking
+    ss._draw_tracked_text(draw, ((REEL_W - lw) // 2, 0), text, lf, ss.C["teal"], tracking=tracking)
+    size = 58
+    qf = ss.font(True, size)
+    while _text_w(draw, question, qf) > REEL_W - 120 and size > 38:
+        size -= 2
+        qf = ss.font(True, size)
+    draw.text((REEL_W / 2, 78), question, font=qf, fill=ss.C["white"], anchor="mm")
+    return overlay
+
+
 def render_title_row(story: dict, logo: Image.Image | None) -> Image.Image:
     overlay = Image.new("RGBA", (REEL_W, 90), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -510,8 +535,8 @@ def render_frames(story: dict, out_dir: Path) -> int:
     base.paste(footer_band, (0, 0), footer_band)
 
     hook = render_hook_overlay(story, logo)
-    # No eyebrow/date header on this reel — it's evergreen, so a date adds
-    # nothing, and the top of a Reel sits under Instagram's own UI anyway.
+    # No date on this reel — it's evergreen. The chart phase gets a series
+    # title instead (render_series_title), below the top safe-zone pad.
     content_top = TOP_SAFE_PAD + 120
     content_bot = REEL_H - FOOTER_ZONE
     hook_y = content_top + (content_bot - content_top - hook.height) // 2 - 40
@@ -564,6 +589,9 @@ def render_frames(story: dict, out_dir: Path) -> int:
     # as a flat line crushed against the baseline by a huge final value.
     running_max = np.maximum.accumulate(np.maximum(values, bench))
     chart_base = base.copy()
+    series_title = render_series_title(f"$1,000 · {story['years']} years ago",
+                                       f"Did {story['name']} beat the market?")
+    chart_base.paste(series_title, (0, SERIES_TITLE_Y), series_title)
     chart_base.paste(title_row, (0, TITLE_Y), title_row)
     chart_base.paste(legend, (0, LEGEND_Y), legend)
 

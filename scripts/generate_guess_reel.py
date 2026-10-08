@@ -227,6 +227,11 @@ def render_frames(story: dict, out_dir: Path) -> int:
     milestones = inv.find_milestones(values)
     running_max = np.maximum.accumulate(np.maximum(values, bench))
     value_font, date_font = ss.font(True, 150), ss.font(False, 36)
+    # Series title for the chart phase onwards (the hook card has its own).
+    chart_bg = base.copy()
+    series_title = inv.render_series_title(f"Guess the stock · {story['years']} years",
+                                           "Can you name it before the reveal?")
+    chart_bg.paste(series_title, (0, inv.SERIES_TITLE_Y), series_title)
 
     frame_idx = 0
 
@@ -258,7 +263,7 @@ def render_frames(story: dict, out_dir: Path) -> int:
         kk = min(int(np.floor(k)), n - 1)
         ymax = max(running_max[kk] * 1.12, inv.INVESTED * 1.6)
         layer = inv.render_chart_layer(values, bench, k, ymax, color, milestones)
-        img = base.copy()
+        img = chart_bg.copy()
         img.paste(row, (0, TITLE_Y), row)
         img.paste(layer, (inv.CHART_X0, inv.CHART_Y0), layer)
         d = ImageDraw.Draw(img)

@@ -107,7 +107,7 @@ WINNER_FRAMES    = 14
 CTA_FRAMES       = 12
 END_HOLD_FRAMES  = 124     # winner + CTA ≈ 5s in all
 
-BARS_Y0   = 470            # top of the first bar slot
+BARS_Y0   = 300            # top of the first bar slot (just under the series title)
 SLOT_H    = 128
 BAR_H     = 92
 LOGO      = 76
@@ -207,12 +207,9 @@ def render_hook(race: dict) -> Image.Image:
 
 
 def render_header(race: dict) -> Image.Image:
-    overlay = Image.new("RGBA", (REEL_W, 120), (0, 0, 0, 0))
-    d = ImageDraw.Draw(overlay)
-    d.text((REEL_W / 2, 30), "$1,000 RACE", font=ss.font(True, 44), fill=ss.C["teal"], anchor="mm")
-    d.text((REEL_W / 2, 88), f"{race['title'][0].upper()}{race['title'][1:]}  ·  {race['years']} years",
-           font=ss.font(False, 36), fill=(214, 220, 228), anchor="mm")
-    return overlay
+    title = f"{race['title'][0].upper()}{race['title'][1:]}"
+    return inv.render_series_title(f"$1,000 race · {race['years']} years",
+                                   f"{title}: who finishes first?")
 
 
 def draw_bar(img: Image.Image, s: dict, y: float, length: float, value: float, highlight: bool) -> None:
@@ -325,7 +322,7 @@ def render_frames(race: dict, out_dir: Path) -> int:
         save(img)
 
     race_base = base.copy()
-    race_base.paste(header, (0, 250), header)
+    race_base.paste(header, (0, inv.SERIES_TITLE_Y), header)
     pos = {s["ticker"]: float(i) for i, s in enumerate(series)}   # smoothed rank slot per bar
     order = list(series)                                            # current displayed ranking
     # Bars scale to the current leader, eased so the axis doesn't jump when
