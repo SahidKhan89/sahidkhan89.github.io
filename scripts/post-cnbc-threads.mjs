@@ -95,38 +95,38 @@ const COMPANIES = [
   ['Honeywell', 'HON'], ['Dover', 'DOV'], ['Albertsons', 'ACI'],
 ];
 
+// Topic tags, used when the story isn't mainly about one listed company. The
+// descriptions are shown to the model so it knows what each tag covers.
 const TOPICS = [
-  ['Earnings',    ['earnings', 'eps', 'revenue', 'profit', 'quarterly', 'beat', 'miss', 'guidance', 'outlook']],
-  ['Economy',     ['economy', 'economic', 'gdp', 'recession', 'unemployment', 'jobs', 'payroll']],
-  ['Fed',         ['federal reserve', 'fomc', 'interest rate', 'rate cut', 'rate hike', 'powell']],
-  ['Inflation',   ['inflation', 'cpi', 'pce', 'deflation', 'tariff', 'tariffs']],
-  ['StockMarket', ['stock market', 'equity', 'rally', 'selloff', 'bull market', 'bear market', 's&p', 'nasdaq', 'dow']],
-  ['Tech',        ['artificial intelligence', 'ai ', 'semiconductor', 'chip', 'software', 'cloud']],
-  ['Crypto',      ['bitcoin', 'crypto', 'ethereum', 'blockchain', 'btc', 'eth']],
-  ['Energy',      ['oil', 'crude', 'opec', 'natural gas', 'renewables', 'solar']],
-  ['Investing',   ['investing', 'portfolio', 'dividend', 'yield', 'etf', 'fund']],
+  ['Earnings',    'company quarterly results, revenue/profit figures, guidance'],
+  ['Economy',     'GDP, jobs, unemployment, recession, consumer spending'],
+  ['Fed',         'Federal Reserve, interest-rate decisions, central bank policy'],
+  ['Inflation',   'CPI/PCE, prices, tariffs and their effect on costs'],
+  ['StockMarket', 'broad market moves — S&P 500, Nasdaq, Dow, rallies, selloffs'],
+  ['Tech',        'AI, semiconductors, software, cloud — the tech industry broadly'],
+  ['Crypto',      'bitcoin, ethereum, crypto markets and companies'],
+  ['Energy',      'oil, gas, OPEC, renewables, energy prices'],
+  ['Investing',   'personal investing, portfolios, dividends, ETFs, funds'],
 ];
 
 // Threads only renders one hashtag as an actual clickable tag per post —
 // anything beyond that just sits as flat, unlinked text, and Threads doesn't
 // support cashtags ($TICKER) as a linkable entity at all (unlike X/Twitter).
-// So emit exactly one hashtag: the ticker as #TICKER if the article names a
-// company (more specific and more useful for a stock account), otherwise the
-// top topic tag.
-function generateHashtags(title, description) {
-  const lower = (title + ' ' + description).toLowerCase();
-  const full  = title + ' ' + description;
+// So emit exactly one hashtag: #TICKER if the story is mainly about a listed
+// company, otherwise a topic tag, or none if nothing fits.
+//
+// The model picks the tag rather than keyword matching: substring matching
+// tagged an NBA "smart balls" story #Earnings ("eps" inside "steps"), and even
+// whole-word matching can't tell "Delta variant" from Delta Air Lines. The
+// schema enum restricts it to known tags so it can't invent one.
+const TICKER_TAGS = [...new Set(COMPANIES.map(([, ticker]) => ticker.replace('.', '')))];
+const TOPIC_TAGS  = TOPICS.map(([tag]) => tag);
+const NO_TAG      = 'none';
 
-  for (const [name, ticker] of COMPANIES) {
-    if (full.includes(name)) return '#' + ticker.replace('.', '');
-  }
-
-  for (const [tag, keywords] of TOPICS) {
-    if (keywords.some(kw => lower.includes(kw))) return '#' + tag;
-  }
-
-  return '';
-}
+const HASHTAG_GUIDE = [
+  'Companies (use the ticker): ' + COMPANIES.map(([name, t]) => `${name}=${t.replace('.', '')}`).join(', ') + '.',
+  'Topics: ' + TOPICS.map(([tag, desc]) => `${tag} (${desc})`).join('; ') + '.',
+].join('\n');
 
 // ─── LLM rewording ─────────────────────────────────────────────────────────────
 
@@ -154,10 +154,11 @@ function freshnessInstruction(pubDate) {
   return `This was reported about ${daysAgo} day(s) ago — this is OLD news, not breaking. Do NOT use "just", "breaking", "moments ago", or "today". Use clearly retrospective framing instead (e.g. "earlier this week", "X reported that...", past tense throughout).`;
 }
 
+// Returns { text, hashtag } — hashtag is '#TAG' or '' when nothing fits.
 async function rewordArticle(article) {
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
-    max_tokens: 300,
+    max_tokens: 500,
     system: [
       "You post on Threads for Stock Score, a stock market app for everyday retail investors — not a news outlet.",
       "Given a CNBC headline and summary, tell people what happened and why it matters, like you're texting a friend the headline, not filing a report.",
@@ -167,10 +168,26 @@ async function rewordArticle(article) {
       "Every sentence must add a new fact or angle — never restate the same point in different words just to fill space. If there's nothing else worth saying, stop after one sentence.",
       "Factual only, never invent numbers or details not in the source.",
       "You may use at most one emoji if it genuinely fits (e.g. 📈📉🚀) — skip it entirely rather than force one.",
-      'No hashtags, no quotation marks around the output, no mention of "CNBC" or "according to".',
+      'No hashtags in the post text, no quotation marks around it, no mention of "CNBC" or "according to".',
       "Match your tense and immediacy language to how old the story actually is — see the timing note below.",
-      'Under 320 characters. Output ONLY the post text — nothing else.',
+      'Keep the post text under 320 characters.',
+      "Then pick ONE hashtag for the post. Use a company's ticker only if the story is mainly about that company (not a passing mention, and not a different meaning of the name — e.g. 'Delta variant' is not Delta Air Lines).",
+      `Otherwise use the topic that genuinely fits. If the story isn't about markets, business or the economy (sports, entertainment, general news), or nothing fits clearly, use "${NO_TAG}" — a wrong tag is worse than none.`,
+      '\n\n' + HASHTAG_GUIDE,
     ].join(' '),
+    tools: [{
+      name: 'submit_post',
+      description: 'Submit the Threads post text and its hashtag.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          text:    { type: 'string', description: 'The post text, under 320 characters, no hashtags.' },
+          hashtag: { type: 'string', enum: [...TICKER_TAGS, ...TOPIC_TAGS, NO_TAG], description: 'Tag without the # sign, or "none".' },
+        },
+        required: ['text', 'hashtag'],
+      },
+    }],
+    tool_choice: { type: 'tool', name: 'submit_post' },
     messages: [
       {
         role: 'user',
@@ -179,14 +196,17 @@ async function rewordArticle(article) {
     ],
   });
 
-  const textBlock = response.content.find(b => b.type === 'text');
-  if (!textBlock) throw new Error('No text in LLM response');
-  return textBlock.text.trim();
+  const toolBlock = response.content.find(b => b.type === 'tool_use');
+  const text = toolBlock?.input?.text?.trim();
+  if (!text) throw new Error('No post text in LLM response');
+  const tag = toolBlock.input.hashtag;
+  // Guard the enum anyway — an unknown tag is dropped rather than posted.
+  const valid = TICKER_TAGS.includes(tag) || TOPIC_TAGS.includes(tag);
+  return { text, hashtag: valid ? '#' + tag : '' };
 }
 
-function buildCaption(postText, article) {
-  const hashtags = generateHashtags(article.title, article.description);
-  const footer = hashtags ? '\n\n' + hashtags : '';
+function buildCaption(postText, hashtag) {
+  const footer = hashtag ? '\n\n' + hashtag : '';
   const base = postText + footer;
   if (base.length <= CAPTION_LIMIT) return base;
   return postText.slice(0, CAPTION_LIMIT - footer.length - 1) + '…' + footer;
@@ -263,8 +283,8 @@ async function main() {
   }
 
   console.log(`\nRewording: ${article.title}`);
-  const postText = await withRetry('LLM reword', () => rewordArticle(article));
-  const caption  = buildCaption(postText, article);
+  const { text: postText, hashtag } = await withRetry('LLM reword', () => rewordArticle(article));
+  const caption = buildCaption(postText, hashtag);
 
   console.log('\n--- Threads post ---');
   console.log(caption);
