@@ -24,6 +24,7 @@ const MAX_HISTORY = 500;
 const CAPTION_LIMIT = 500; // Threads character limit
 const MAX_AGE_HOURS = 72;  // don't post news older than this
 const MAX_AGE_MS = MAX_AGE_HOURS * 60 * 60 * 1000;
+const MAX_RELEVANCE_CHECKS = 5; // LLM calls per run before giving up on finding a market story
 
 // ─── RSS parsing ───────────────────────────────────────────────────────────────
 
@@ -154,7 +155,10 @@ function freshnessInstruction(pubDate) {
   return `This was reported about ${daysAgo} day(s) ago — this is OLD news, not breaking. Do NOT use "just", "breaking", "moments ago", or "today". Use clearly retrospective framing instead (e.g. "earlier this week", "X reported that...", past tense throughout).`;
 }
 
-// Returns { text, hashtag } — hashtag is '#TAG' or '' when nothing fits.
+// Returns { relevant, text, hashtag } — hashtag is '#TAG' or '' when nothing
+// fits. The top-news feed carries politics/legal/sports stories too; without
+// a way to say "skip this" the model wrote its reasoning ("This isn't a
+// markets story…") into the post text, which then got posted.
 async function rewordArticle(article) {
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
@@ -171,8 +175,9 @@ async function rewordArticle(article) {
       'No hashtags in the post text, no quotation marks around it, no mention of "CNBC" or "according to".',
       "Match your tense and immediacy language to how old the story actually is — see the timing note below.",
       'Keep the post text under 320 characters.',
+      "First decide whether the story is relevant to retail investors — markets, companies, business, the economy, rates, or policy with a clear market impact. If not (politics, legal, sports, entertainment, general news with no market angle), set relevant to false and leave text empty — never explain the decision in the text.",
       "Then pick ONE hashtag for the post. Use a company's ticker only if the story is mainly about that company (not a passing mention, and not a different meaning of the name — e.g. 'Delta variant' is not Delta Air Lines).",
-      `Otherwise use the topic that genuinely fits. If the story isn't about markets, business or the economy (sports, entertainment, general news), or nothing fits clearly, use "${NO_TAG}" — a wrong tag is worse than none.`,
+      `Otherwise use the topic that genuinely fits, or "${NO_TAG}" if nothing fits clearly — a wrong tag is worse than none.`,
       '\n\n' + HASHTAG_GUIDE,
     ].join(' '),
     tools: [{
@@ -181,10 +186,11 @@ async function rewordArticle(article) {
       input_schema: {
         type: 'object',
         properties: {
-          text:    { type: 'string', description: 'The post text, under 320 characters, no hashtags.' },
+          relevant: { type: 'boolean', description: 'false if the story has no market/business angle and should not be posted.' },
+          text:    { type: 'string', description: 'The post text, under 320 characters, no hashtags. Empty when relevant is false.' },
           hashtag: { type: 'string', enum: [...TICKER_TAGS, ...TOPIC_TAGS, NO_TAG], description: 'Tag without the # sign, or "none".' },
         },
-        required: ['text', 'hashtag'],
+        required: ['relevant', 'text', 'hashtag'],
       },
     }],
     tool_choice: { type: 'tool', name: 'submit_post' },
@@ -197,12 +203,13 @@ async function rewordArticle(article) {
   });
 
   const toolBlock = response.content.find(b => b.type === 'tool_use');
+  if (toolBlock?.input?.relevant === false) return { relevant: false };
   const text = toolBlock?.input?.text?.trim();
   if (!text) throw new Error('No post text in LLM response');
   const tag = toolBlock.input.hashtag;
   // Guard the enum anyway — an unknown tag is dropped rather than posted.
   const valid = TICKER_TAGS.includes(tag) || TOPIC_TAGS.includes(tag);
-  return { text, hashtag: valid ? '#' + tag : '' };
+  return { relevant: true, text, hashtag: valid ? '#' + tag : '' };
 }
 
 function buildCaption(postText, hashtag) {
@@ -274,22 +281,42 @@ async function main() {
   // LIFO — newest fresh article first, so each run posts the latest headline.
   freshCandidates.sort((a, b) => (b.pubDate?.getTime() ?? now) - (a.pubDate?.getTime() ?? now));
 
-  const article = freshCandidates[0];
+  // Walk newest-first until the model accepts one. Off-topic stories are
+  // marked as seen (only once we're actually posting — not on a dry run) so
+  // they aren't re-checked every run.
+  let article = null;
+  let postText, hashtag;
+  const offTopic = [];
+  for (const candidate of freshCandidates.slice(0, MAX_RELEVANCE_CHECKS)) {
+    console.log(`\nRewording: ${candidate.title}`);
+    const result = await withRetry('LLM reword', () => rewordArticle(candidate));
+    if (!result.relevant) {
+      console.log('  Skipping (no market angle).');
+      offTopic.push(candidate.link);
+      continue;
+    }
+    article = candidate;
+    ({ text: postText, hashtag } = result);
+    break;
+  }
+
+  const isDryRun = !process.env.THREADS_ACCESS_TOKEN || !process.env.THREADS_USER_ID;
+  if (!isDryRun) offTopic.forEach(link => posted.add(link));
+
   if (!article) {
-    console.log('No fresh CNBC articles to post.');
+    console.log('No fresh, market-relevant CNBC articles to post.');
+    if (isDryRun) return;
     tracking.posted = [...posted].slice(-MAX_HISTORY);
     writeFileSync(TRACKING, JSON.stringify(tracking, null, 2) + '\n');
     return;
   }
 
-  console.log(`\nRewording: ${article.title}`);
-  const { text: postText, hashtag } = await withRetry('LLM reword', () => rewordArticle(article));
   const caption = buildCaption(postText, hashtag);
 
   console.log('\n--- Threads post ---');
   console.log(caption);
 
-  if (!process.env.THREADS_ACCESS_TOKEN || !process.env.THREADS_USER_ID) {
+  if (isDryRun) {
     console.log('\nNo Threads credentials — skipping post (dry run).');
     return;
   }
