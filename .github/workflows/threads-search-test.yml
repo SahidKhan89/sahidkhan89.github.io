@@ -1,0 +1,28 @@
+name: Threads Search Test
+
+# Manual check of what keyword search returns with the repo's Threads token —
+# the secret can't be read back from GitHub, so run the query here instead.
+# If every username is your own, threads_keyword_search isn't approved for
+# public posts yet.
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Keyword to search'
+        default: 'stock'
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Search
+        env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          QUERY: ${{ inputs.query }}
+        run: |
+          curl -s -G "https://graph.threads.net/v1.0/keyword_search" \
+            --data-urlencode "q=$QUERY" \
+            -d "limit=10" \
+            -d "fields=username,timestamp,text" \
+            -d "access_token=$THREADS_ACCESS_TOKEN" \
+            | jq -r '.error // (.data | length | "\(.) posts") , (.data[]? | "@\(.username)  \(.timestamp)  \((.text // "")[0:80] | gsub("\n"; " "))")'
