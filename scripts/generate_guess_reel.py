@@ -93,11 +93,13 @@ HINT_AT            = (0.30, 0.62)   # fraction of the chart draw where each hint
 MYSTERY_COLOR = (0, 210, 190)      # ss.C["teal"] — neutral until the reveal
 
 
-def rotation_order(history: list) -> list:
+def rotation_order(history: list, avoid=()) -> list:
+    """Same scheme as the $1,000 reel's; `avoid` holds back its recent picks."""
     recent = history[-ROTATION_COOLDOWN:]
-    fresh = [t for t in MYSTERIES if t not in recent]
+    fresh = [t for t in MYSTERIES if t not in recent and t not in avoid]
+    held  = [t for t in MYSTERIES if t not in recent and t in avoid]
     last_used = {t: i for i, t in enumerate(history)}
-    return fresh + sorted((t for t in MYSTERIES if t in recent), key=lambda t: last_used.get(t, -1))
+    return fresh + held + sorted((t for t in MYSTERIES if t in recent), key=lambda t: last_used.get(t, -1))
 
 
 # ── Overlays ────────────────────────────────────────────────────────────────────
@@ -338,7 +340,8 @@ def main():
 
     tracking = json.loads(TRACKING.read_text()) if TRACKING.exists() else {}
     forced_ticker = (args.ticker or os.environ.get("FORCE_TICKER") or "").upper()
-    to_try = [forced_ticker] if forced_ticker else rotation_order(tracking.get("tickers", []))[:5]
+    avoid = inv.recent_tickers(inv.TRACKING, inv.CROSS_COOLDOWN)
+    to_try = [forced_ticker] if forced_ticker else rotation_order(tracking.get("tickers", []), avoid)[:5]
     end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
     story = None

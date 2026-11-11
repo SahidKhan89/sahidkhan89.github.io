@@ -43,6 +43,7 @@ ROOT          = Path(__file__).parent.parent
 OUTPUT_DIR    = ROOT / "images" / "investment-reel"
 REEL_MANIFEST = Path(__file__).parent / "_investment_reel_manifest.json"
 TRACKING      = ROOT / "data" / "posted_investment_reel.json"
+GUESS_TRACKING = ROOT / "data" / "posted_guess_reel.json"
 
 # ticker -> (display name, lookback years). Ordered so big winners alternate
 # with laggards/blow-ups (PTON, SNAP, ZM...) and steady compounders — the
@@ -128,6 +129,9 @@ CANDIDATES = {
     "SPOT":  ("Spotify",              5),
 }
 ROTATION_COOLDOWN = 30   # don't repeat a ticker within its last N posts
+CROSS_COOLDOWN    = 6    # ...or one the guess reel used in its last N posts —
+                         # both lists share an order, so they'd otherwise
+                         # feature the same stock days apart
 BENCHMARK = "SPY"        # S&P 500 total-return proxy (dividends included)
 INVESTED  = 1000.0
 
@@ -221,15 +225,25 @@ def build_story(ticker: str, years: int, end: datetime) -> dict | None:
     }
 
 
-def rotation_order(history: list) -> list:
+def recent_tickers(path: Path, n: int) -> list:
+    """Last n tickers from a reel's tracking file ([] if missing/unreadable)."""
+    try:
+        return json.loads(path.read_text()).get("tickers", [])[-n:]
+    except (OSError, ValueError):
+        return []
+
+
+def rotation_order(history: list, avoid=()) -> list:
     """Candidates in the order to try: list order, skipping anything used in
-    the last ROTATION_COOLDOWN posts, then the cooled-down ones least-recent
+    the last ROTATION_COOLDOWN posts, then ones held back only by `avoid` (the
+    sibling reel's recent picks), then the cooled-down ones least-recent
     first — so a failed fetch just falls through to the next ticker."""
     recent = history[-ROTATION_COOLDOWN:]
-    fresh = [t for t in CANDIDATES if t not in recent]
+    fresh = [t for t in CANDIDATES if t not in recent and t not in avoid]
+    held  = [t for t in CANDIDATES if t not in recent and t in avoid]
     last_used = {t: i for i, t in enumerate(history)}
-    return fresh + sorted((t for t in CANDIDATES if t in recent),
-                          key=lambda t: last_used.get(t, -1))
+    return fresh + held + sorted((t for t in CANDIDATES if t in recent),
+                                 key=lambda t: last_used.get(t, -1))
 
 
 # ── Formatting ──────────────────────────────────────────────────────────────────
@@ -668,7 +682,7 @@ def main():
     history = tracking.get("tickers", [])
 
     forced_ticker = (args.ticker or os.environ.get("FORCE_TICKER") or "").upper()
-    to_try = [forced_ticker] if forced_ticker else rotation_order(history)[:5]
+    to_try = [forced_ticker] if forced_ticker else rotation_order(history, recent_tickers(GUESS_TRACKING, CROSS_COOLDOWN))[:5]
     end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
     story = None
