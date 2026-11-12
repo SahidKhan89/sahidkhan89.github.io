@@ -366,6 +366,12 @@ def end_card(img, p, t, sc):
     p.text(540, 1255, "For education only · not financial advice", F(28, "medium"), (130, 145, 170))
 
 
+SP500_YEAR_END = {1995: 615, 1996: 740, 1997: 970, 1998: 1229, 1999: 1469, 2000: 1320, 2001: 1148, 2002: 880,
+      2003: 1112, 2004: 1212, 2005: 1248, 2006: 1418, 2007: 1468, 2008: 903, 2009: 1115, 2010: 1258,
+      2011: 1258, 2012: 1426, 2013: 1848, 2014: 2059, 2015: 2044, 2016: 2239, 2017: 2674, 2018: 2507,
+      2019: 3231, 2020: 3756, 2021: 4766, 2022: 3840, 2023: 4770, 2024: 5882, 2025: 6845}   # year-end closes
+
+
 # ── narration → timeline ────────────────────────────────────────────────────
 def norm(w): return re.sub(r"[^a-z0-9$]", "", w.lower())
 
@@ -386,7 +392,7 @@ def load_words(audio: Path):
         cache.write_text(json.dumps(words, indent=0))
     out = []
     for txt, a, b in json.loads(cache.read_text()):
-        if txt[:1] in "-&%" and out:   # whisper splits "Fast" "-growing", "S" "&P", "10" "%"
+        if out and (txt[:1] in "-&%" or re.match(r",\d", txt)):   # whisper splits "Fast" "-growing", "S" "&P", "10" "%", "$36" ",000"
             out[-1]["text"] += txt; out[-1]["end"] = b
         else:
             out.append(dict(text=txt, start=a, end=b))
