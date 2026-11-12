@@ -20,3 +20,6 @@ __pycache__/
 
 # Node dependencies (installed fresh in CI via `npm install`)
 scripts/node_modules/
+
+# Explainer narration audio, transcripts and rendered videos — private, never pushed (public repo)
+stories/
