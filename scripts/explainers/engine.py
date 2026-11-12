@@ -271,6 +271,47 @@ def arrow(p, pts, prog_, color, width=10):
             (x1 + math.cos(a-2.5)*L, y1 + math.sin(a-2.5)*L)], color)
 
 
+def partial(p, pts, u, color, width):
+    """Polyline drawn up to fraction u of its points (with interpolation)."""
+    if u <= 0 or len(pts) < 2: return
+    f = u * (len(pts) - 1); k = int(f)
+    seg = pts[:k+1]
+    if k + 1 < len(pts):
+        (x0, y0), (x1, y1) = pts[k], pts[k+1]
+        seg = seg + [(lerp(x0, x1, f-k), lerp(y0, y1, f-k))]
+    if len(seg) >= 2: p.line(seg, color, width)
+
+
+def basket(p, bx, by, s=1.0, label=None):
+    """Woven basket centred on (bx, by); s scales it (0 hides)."""
+    if s <= 0.02: return
+    bw, bh = 460*s, 190*s
+    p.poly([(bx - bw/2, by - bh/2), (bx + bw/2, by - bh/2), (bx + bw*0.38, by + bh/2), (bx - bw*0.38, by + bh/2)], (150, 98, 40))
+    for k in range(1, 4):
+        yy = by - bh/2 + bh*k/4
+        ww = lerp(bw/2, bw*0.38, k/4)
+        p.line([(bx - ww, yy), (bx + ww, yy)], (115, 72, 26), 5*s)
+    p.rr(bx - bw/2 - 14*s, by - bh/2 - 16*s, bx + bw/2 + 14*s, by - bh/2 + 10*s, 12*s, fill=(176, 118, 52))
+    if label and s > 0.5:
+        p.rr(bx - 70*s, by + 10*s, bx + 70*s, by + 60*s, 12*s, fill=(16, 24, 44))
+        p.text(bx, by + 35*s, label, F(32*s, "heavy"), C["amber"])
+
+
+def price_tag(p, cx, cy, text, s=1.0, fill=C["amber"], ink=INK):
+    """Shop-style price tag pointing left."""
+    if s <= 0.02: return
+    w, h = 210*s, 90*s
+    p.poly([(cx - w/2 - 36*s, cy), (cx - w/2, cy - h/2), (cx - w/2, cy + h/2)], fill)
+    p.rr(cx - w/2 - 2*s, cy - h/2, cx + w/2, cy + h/2, 16*s, fill=fill)
+    p.ell(cx - w/2 - 8*s, cy, 8*s, fill=STAGE)
+    p.text(cx + 10*s, cy, text, F(40*s, "heavy"), ink)
+
+
+def magnifier(p, cx, cy, s=1.0, color=C["white"]):
+    p.limb(cx + 40*s, cy + 40*s, cx + 95*s, cy + 95*s, 18*s, color)
+    p.ell(cx, cy, 62*s, fill=None, outline=color, width=12*s)
+
+
 def trophy(p, cx, cy, s=1.0):
     gold, rim = COIN, COIN_RIM
     p.arc(cx-78*s, cy-60*s, cx-18*s, cy+10*s, 90, 270, rim, 10*s)
@@ -502,11 +543,15 @@ def _render_frame(args):
     render(f / FPS).save(Path(frame_dir) / f"{f:05d}.jpg", quality=92)
 
 
-def run(*, name, audio, eyebrow, title_lines, line_specs, scene_fns, music=None, pauses=(0.7, 1.2)):
+def run(*, name, audio, eyebrow, title_lines, line_specs, scene_fns, music=None, pauses=(0.7, 1.2), display=None):
     """CLI entry for a story: `--still 2,10.5` writes preview PNGs, otherwise renders the MP4.
-    pauses: (between lines, between scenes) in seconds, or None to keep the narration's own gaps."""
+    pauses: (between lines, between scenes) in seconds, or None to keep the narration's own gaps.
+    display: caption text fixes, e.g. {"P-E": "P/E"} when the script was spelled for the voice."""
     out_dir = ROOT / "stories" / "out"; out_dir.mkdir(parents=True, exist_ok=True)
     words = load_words(audio)
+    for wd in words:
+        for a, b in (display or {}).items():
+            wd["text"] = wd["text"].replace(a, b)
     starts = line_starts(words, line_specs)
     if pauses:
         audio = stretch_pauses(audio, words, line_specs, starts, pauses, out_dir / f"{name}.narration.wav")

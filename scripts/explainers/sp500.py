@@ -36,17 +36,6 @@ BASKET = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "AVGO", "TSLA",
           "JPM", "LLY", "V", "WMT", "XOM", "MA", "COST", "NFLX"]
 
 
-def partial(p, pts, u, color, width):
-    """Polyline drawn up to fraction u of its points (with interpolation)."""
-    if u <= 0 or len(pts) < 2: return
-    f = u * (len(pts) - 1); k = int(f)
-    seg = pts[:k+1]
-    if k + 1 < len(pts):
-        (x0, y0), (x1, y1) = pts[k], pts[k+1]
-        seg = seg + [(lerp(x0, x1, f-k), lerp(y0, y1, f-k))]
-    if len(seg) >= 2: p.line(seg, color, width)
-
-
 def scene_hook(img, p, t, sc):
     L, w = sc["L"], sc["w"]
     fade = 1 - prog(t, L[1] - 0.2, 0.4)
@@ -92,14 +81,7 @@ def scene_basket(img, p, t, sc):
         bt = w("basket") - 0.3
         drop = eio(prog(t, bt, 0.6))
         bu = back(prog(t, bt - 0.3, 0.5))
-        if bu > 0.02:
-            bx, by, bw, bh = 540, 1060, 460*bu, 190*bu
-            p.poly([(bx - bw/2, by - bh/2), (bx + bw/2, by - bh/2), (bx + bw*0.38, by + bh/2), (bx - bw*0.38, by + bh/2)], (150, 98, 40))
-            for k in range(1, 4):
-                yy = by - bh/2 + bh*k/4
-                ww = lerp(bw/2, bw*0.38, k/4)
-                p.line([(bx - ww, yy), (bx + ww, yy)], (115, 72, 26), 5)
-            p.rr(bx - bw/2 - 14, by - bh/2 - 16, bx + bw/2 + 14, by - bh/2 + 10, 12, fill=(176, 118, 52))
+        basket(p, 540, 1060, bu)
         # extra logos already sitting in the basket
         for k, tk in enumerate(BASKET[4:12]):
             eu = back(prog(t, bt + 0.4 + k*0.06, 0.35))
